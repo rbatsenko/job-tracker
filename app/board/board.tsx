@@ -6,6 +6,7 @@ import { ScopeTag, money } from "@/components/bits";
 import { COUNTRY_OPTIONS } from "@/lib/countries";
 import { addFromBoard, trackedOrigins } from "@/lib/my-jobs";
 import {
+  BLANK_PROFILE,
   clearProfile,
   readProfile,
   saveProfile,
@@ -155,29 +156,66 @@ export default function Board() {
       )}
 
       {ready && !editing && (
-        <div className="mb-4 flex flex-wrap items-center gap-2.5">
-          {scored ? (
-            <>
-              <span className="text-sm text-soft">
-                Ranked for {profile?.label.toLowerCase()}, from your own settings.
-              </span>
+        <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+          <span className="text-sm text-faint">Rank for</span>
+
+          {/* One click to a useful ranking. The form is there for anyone who
+              wants to be specific, but it should never be the only way in. */}
+          <div role="radiogroup" aria-label="Rank jobs for" className="flex gap-0.5 rounded-field border border-line bg-sunken p-1">
+            <button
+              role="radio"
+              aria-checked={!profile}
+              onClick={() => {
+                clearProfile();
+                setProfile(null);
+                setSort("newest");
+              }}
+              className={`h-9 rounded-md px-3.5 text-[0.9375rem] font-medium transition ${
+                !profile ? "bg-raised text-text shadow-sm" : "text-faint hover:text-soft"
+              }`}
+            >
+              Nothing
+            </button>
+            {(["engineering", "design"] as const).map((k) => (
               <button
-                onClick={() => setEditing(true)}
-                className="h-9 rounded-md border border-line px-3 text-sm font-medium text-soft hover:bg-sunken"
+                key={k}
+                role="radio"
+                aria-checked={profile?.basedOn === k}
+                onClick={() => {
+                  // Keep whatever else they have already set.
+                  const next: ViewerProfile = {
+                    ...(profile ?? BLANK_PROFILE),
+                    basedOn: k,
+                    label: k === "design" ? "Design" : "Engineering",
+                    coreStack: profile?.basedOn === k ? (profile?.coreStack ?? []) : [],
+                  };
+                  saveProfile(next);
+                  setProfile(next);
+                  setSort("score");
+                }}
+                className={`h-9 rounded-md px-3.5 text-[0.9375rem] font-medium transition ${
+                  profile?.basedOn === k ? "bg-raised text-text shadow-sm" : "text-faint hover:text-soft"
+                }`}
               >
-                Change
+                {k === "design" ? "Design" : "Engineering"}
               </button>
-            </>
-          ) : (
-            <>
-              <span className="text-sm text-soft">Showing everything, newest first.</span>
-              <button
-                onClick={() => setEditing(true)}
-                className="h-9 rounded-md border border-line px-3 text-sm font-medium text-brand hover:bg-brand-soft"
-              >
-                Rank these for me
-              </button>
-            </>
+            ))}
+          </div>
+
+          <button
+            onClick={() => setEditing(true)}
+            className="h-9 rounded-md px-2 text-sm font-medium text-brand underline-offset-4 hover:underline"
+          >
+            {profile ? "Fine-tune" : "Set where you can work"}
+          </button>
+
+          {profile && (
+            <span className="text-sm text-faint">
+              {profile.reach.regions.includes("worldwide")
+                ? "anywhere remote"
+                : profile.reach.regions.map((r) => r.toUpperCase()).join(", ")}
+              {profile.money.floor > 0 ? `, from ${profile.money.floor.toLocaleString()} ${profile.money.currency}` : ""}
+            </span>
           )}
         </div>
       )}
