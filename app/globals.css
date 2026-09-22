@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink-950: #0b0d10;
+  --color-ink-900: #12151a;
+  --color-ink-850: #171b22;
+  --color-ink-800: #1d222b;
+  --color-ink-700: #2a313d;
+  --color-ink-500: #6b7686;
+  --color-ink-300: #a8b2c1;
+  --color-ink-100: #e6eaf0;
+  --color-accent: #f4a259;
+  --color-good: #4ade80;
+  --color-warn: #fbbf24;
+  --color-bad: #f87171;
+}
+
+html,
+body {
+  background: var(--color-ink-950);
+  color: var(--color-ink-100);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--color-accent);
+  color: #000;
+}
+
+/* Tidy scrollbars inside the two scrolling panes. */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-ink-700) transparent;
+}
