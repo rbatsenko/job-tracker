@@ -80,32 +80,32 @@ export default function Board() {
   const rows = useMemo(() => data?.jobs ?? [], [data]);
 
   return (
-    <main className="mx-auto max-w-[1400px] px-5 py-8">
+    <main className="mx-auto max-w-[1400px] px-4 py-6 sm:px-5 sm:py-8">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Find jobs</h1>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Find jobs</h1>
           <p className="mt-1.5 text-base text-soft">
             {data ? `${data.facets.total} listings pulled from 11 boards` : " "}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex w-full items-center gap-3 sm:w-auto">
           {note && <span className="text-sm text-soft">{note}</span>}
           <button
             onClick={refresh}
             disabled={busy}
-            className="h-11 rounded-field bg-brand px-5 text-base font-semibold text-brand-text transition hover:brightness-110 disabled:opacity-50"
+            className="h-11 w-full whitespace-nowrap rounded-field bg-brand px-5 text-base font-semibold text-brand-text transition hover:brightness-110 disabled:opacity-50 sm:w-auto"
           >
             {busy ? "Fetching…" : "Fetch new jobs"}
           </button>
         </div>
       </div>
 
-      <div className="mb-6 flex flex-wrap items-center gap-3">
+      <div className="mb-6 grid grid-cols-2 gap-2.5 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search company, role, stack"
-          className={`${control} w-72`}
+          className={`${control} col-span-2 sm:w-72`}
           aria-label="Search"
         />
         <select value={scope} onChange={(e) => setScope(e.target.value)} className={control} aria-label="Location">
@@ -127,7 +127,7 @@ export default function Board() {
           <option value="newest">Newest</option>
           <option value="company">Company</option>
         </select>
-        <span className="ml-auto text-sm text-faint">{rows.length} shown</span>
+        <span className="col-span-2 text-sm text-faint sm:ml-auto">{rows.length} shown</span>
       </div>
 
       <ul className="overflow-hidden rounded-card border border-line bg-raised shadow-[var(--shadow)]">
@@ -137,10 +137,10 @@ export default function Board() {
           return (
             <li
               key={j.id}
-              className={`flex items-center gap-5 px-5 py-4 ${i > 0 ? "border-t border-line" : ""}`}
+              className={`flex flex-wrap items-start gap-x-4 gap-y-3 px-4 py-4 sm:flex-nowrap sm:items-center sm:gap-5 sm:px-5 ${i > 0 ? "border-t border-line" : ""}`}
             >
               <span
-                className={`w-11 shrink-0 rounded-md py-1.5 text-center text-base font-semibold tabular-nums ${
+                className={`mt-0.5 w-11 shrink-0 rounded-md py-1.5 text-center text-base font-semibold tabular-nums sm:mt-0 ${
                   j.fit_score >= 75
                     ? "bg-brand-soft text-brand"
                     : j.fit_score >= 55
@@ -156,10 +156,10 @@ export default function Board() {
                 href={j.url}
                 target="_blank"
                 rel="noreferrer"
-                className="min-w-0 flex-1 group"
+                className="group min-w-0 flex-1 basis-[calc(100%-4rem)] sm:basis-auto"
               >
-                <span className="flex items-baseline gap-2.5">
-                  <span className="truncate text-lg font-semibold group-hover:underline">{j.title}</span>
+                <span className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
+                  <span className="text-lg font-semibold leading-snug group-hover:underline">{j.title}</span>
                   <span className="truncate text-base text-soft">{j.company}</span>
                 </span>
                 <span className="mt-1.5 flex flex-wrap items-center gap-2.5 text-sm text-faint">
@@ -173,7 +173,7 @@ export default function Board() {
               <button
                 onClick={() => add(j)}
                 disabled={have}
-                className={`h-11 shrink-0 rounded-field px-4 text-base font-medium transition ${
+                className={`h-11 w-full shrink-0 whitespace-nowrap rounded-field px-4 text-base font-medium transition sm:w-auto ${
                   have
                     ? "bg-brand-soft text-brand"
                     : "border border-line text-soft hover:border-brand hover:text-brand"

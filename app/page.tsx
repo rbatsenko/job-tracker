@@ -72,25 +72,25 @@ export default function MyJobsPage() {
   };
 
   return (
-    <main className="mx-auto max-w-[1400px] px-5 py-8">
+    <main className="mx-auto max-w-[1400px] px-4 py-6 sm:px-5 sm:py-8">
       <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">My jobs</h1>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">My jobs</h1>
           <p className="mt-1.5 text-base text-soft">
             {!ready
               ? " "
               : jobs.length === 0
                 ? "Nothing here yet."
                 : `${jobs.length} ${jobs.length === 1 ? "job" : "jobs"}${
-                    counts.applied ? ` · ${counts.applied} applied` : ""
-                  }${counts.interviewing ? ` · ${counts.interviewing} interviewing` : ""}`}
+                    counts.applied ? `, ${counts.applied} applied` : ""
+                  }${counts.interviewing ? `, ${counts.interviewing} interviewing` : ""}`}
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           <button
             onClick={() => guard(() => void navigator.clipboard.writeText(exportMyJobs()))}
-            className="h-11 rounded-field border border-line px-4 text-base font-medium text-soft transition hover:bg-sunken hover:text-text"
+            className="h-11 flex-1 whitespace-nowrap rounded-field border border-line px-3 text-[0.9375rem] font-medium text-soft transition hover:bg-sunken hover:text-text sm:flex-none sm:px-4 sm:text-base"
           >
             Copy for Claude
           </button>
@@ -103,13 +103,13 @@ export default function MyJobsPage() {
               a.click();
               URL.revokeObjectURL(a.href);
             }}
-            className="h-11 rounded-field border border-line px-4 text-base font-medium text-soft transition hover:bg-sunken hover:text-text"
+            className="h-11 flex-1 whitespace-nowrap rounded-field border border-line px-3 text-[0.9375rem] font-medium text-soft transition hover:bg-sunken hover:text-text sm:flex-none sm:px-4 sm:text-base"
           >
             Export
           </button>
           <button
             onClick={() => fileRef.current?.click()}
-            className="h-11 rounded-field border border-line px-4 text-base font-medium text-soft transition hover:bg-sunken hover:text-text"
+            className="h-11 flex-1 whitespace-nowrap rounded-field border border-line px-3 text-[0.9375rem] font-medium text-soft transition hover:bg-sunken hover:text-text sm:flex-none sm:px-4 sm:text-base"
           >
             Import
           </button>
@@ -126,7 +126,7 @@ export default function MyJobsPage() {
           />
           <button
             onClick={() => setAdding(true)}
-            className="h-11 rounded-field bg-brand px-5 text-base font-semibold text-brand-text transition hover:brightness-110"
+            className="h-11 w-full whitespace-nowrap rounded-field bg-brand px-5 text-base font-semibold text-brand-text transition hover:brightness-110 sm:w-auto"
           >
             Add a job
           </button>
@@ -140,22 +140,22 @@ export default function MyJobsPage() {
       )}
 
       {ready && jobs.length === 0 && !adding && (
-        <div className="rounded-card border border-line bg-raised p-12 text-center shadow-[var(--shadow)]">
-          <h2 className="text-xl font-semibold">Add the first job you are chasing</h2>
-          <p className="mx-auto mt-2 max-w-md text-base text-soft">
+        <div className="rounded-card border border-line bg-raised p-6 shadow-[var(--shadow)] sm:p-12 sm:text-center">
+          <h2 className="text-xl font-semibold sm:text-2xl">Add the first job you are chasing</h2>
+          <p className="mt-2 max-w-md text-base text-soft sm:mx-auto">
             Paste one you found anywhere, or browse the board and add from there. Everything
             stays in this browser.
           </p>
-          <div className="mt-6 flex justify-center gap-3">
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
             <button
               onClick={() => setAdding(true)}
-              className="h-11 rounded-field bg-brand px-5 text-base font-semibold text-brand-text"
+              className="flex h-12 items-center justify-center whitespace-nowrap rounded-field bg-brand px-5 text-base font-semibold text-brand-text"
             >
               Add a job
             </button>
             <a
               href="/board"
-              className="flex h-11 items-center rounded-field border border-line px-5 text-base font-medium text-soft hover:bg-sunken"
+              className="flex h-12 items-center justify-center whitespace-nowrap rounded-field border border-line px-5 text-base font-medium text-soft hover:bg-sunken"
             >
               Browse the board
             </a>
@@ -181,12 +181,12 @@ export default function MyJobsPage() {
             <li key={j.id} className={i > 0 ? "border-t border-line" : ""}>
               <button
                 onClick={() => setOpenId(openId === j.id ? null : j.id)}
-                className="flex w-full items-center gap-5 px-5 py-4 text-left transition hover:bg-sunken"
+                className="flex w-full flex-col items-start gap-2.5 px-4 py-4 text-left transition hover:bg-sunken sm:flex-row sm:items-center sm:gap-5 sm:px-5"
               >
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-baseline gap-2.5">
+                <span className="min-w-0 w-full flex-1">
+                  <span className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
                     {j.starred && <span className="text-brand">★</span>}
-                    <span className="truncate text-lg font-semibold">{j.title}</span>
+                    <span className="text-lg font-semibold leading-snug">{j.title}</span>
                     <span className="truncate text-base text-soft">{j.company}</span>
                   </span>
                   <span className="mt-1.5 flex flex-wrap items-center gap-2.5 text-sm text-faint">
@@ -295,7 +295,7 @@ function Editor({
   const commit = (k: keyof MyJob) => onChange({ [k]: local[k] } as Partial<MyJob>);
 
   return (
-    <div className="border-t border-line bg-sunken px-5 py-6">
+    <div className="border-t border-line bg-sunken px-4 py-5 sm:px-5 sm:py-6">
       <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
         <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">

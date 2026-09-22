@@ -12,6 +12,9 @@ export const STAGE_ORDER: Status[] = [
   "offer",
 ];
 
+/** Statuses are stored lowercase; they are only ever shown capitalised. */
+export const stageLabel = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
 export const stageTone = (s: Status) =>
   s === "offer" ? "won" : s === "rejected" ? "closed" : s === "archived" || s === "new" ? "quiet" : "live";
 
@@ -47,7 +50,7 @@ export function StageBar({ status }: { status: Status }) {
           tone === "won" ? "text-won" : tone === "closed" ? "text-closed" : tone === "quiet" ? "text-faint" : "text-text"
         }`}
       >
-        {status}
+        {stageLabel(status)}
       </span>
     </span>
   );
@@ -69,7 +72,7 @@ export function StagePicker({
     >
       {STATUSES.map((s) => (
         <option key={s} value={s}>
-          {s}
+          {stageLabel(s)}
         </option>
       ))}
     </select>

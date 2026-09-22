@@ -12,11 +12,14 @@ export default function Nav() {
   ];
 
   return (
-    <header className="sticky top-0 z-30 border-b border-line bg-bg/85 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-[1400px] items-center gap-6 px-5">
-        <span className="text-lg font-bold tracking-tight">Job Tracker</span>
+    <header className="sticky top-0 z-30 border-b border-line bg-bg/90 backdrop-blur">
+      <div className="mx-auto flex h-14 max-w-[1400px] items-center gap-2 px-4 sm:h-16 sm:gap-5 sm:px-5">
+        {/* The wordmark is the first thing to go when space is tight. */}
+        <span className="hidden whitespace-nowrap text-lg font-bold tracking-tight sm:inline">
+          Job Tracker
+        </span>
 
-        <nav className="flex items-center gap-1">
+        <nav className="flex min-w-0 items-center gap-1">
           {tabs.map((t) => {
             const active = path === t.href;
             return (
@@ -24,7 +27,7 @@ export default function Nav() {
                 key={t.href}
                 href={t.href}
                 aria-current={active ? "page" : undefined}
-                className={`flex h-10 items-center rounded-field px-4 text-base font-medium transition ${
+                className={`flex h-10 items-center whitespace-nowrap rounded-field px-3 text-[0.9375rem] font-medium transition sm:px-4 sm:text-base ${
                   active ? "bg-brand-soft text-brand" : "text-soft hover:bg-sunken hover:text-text"
                 }`}
               >
@@ -34,7 +37,7 @@ export default function Nav() {
           })}
         </nav>
 
-        <div className="ml-auto">
+        <div className="ml-auto shrink-0">
           <ThemeToggle />
         </div>
       </div>
