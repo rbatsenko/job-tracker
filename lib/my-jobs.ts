@@ -241,6 +241,26 @@ export function exportMyJobs(): string {
   return JSON.stringify({ version: 1, exported_at: now(), jobs: read() } satisfies MyJobsFile, null, 2);
 }
 
+/**
+ * The clipboard payload is the export plus a short brief, so pasting it into an
+ * assistant is enough on its own — no separate explaining required.
+ */
+export function copyForAssistant(): string {
+  const jobs = read();
+  return `Here is my job search, exported from my tracker (${jobs.length} ${
+    jobs.length === 1 ? "job" : "jobs"
+  }).
+
+It lives in my browser, so you cannot fetch or edit it directly. If you change
+anything, give me back the whole JSON document in exactly this shape and I will
+paste it into the Import button. Keep every "id" as it is.
+
+Status values: new, shortlist, drafted, applied, replied, interviewing, offer,
+rejected, archived. "draft" is the message I plan to send them.
+
+${exportMyJobs()}`;
+}
+
 export type ImportMode = "merge" | "replace";
 
 export function importMyJobs(json: string, mode: ImportMode = "merge"): number {

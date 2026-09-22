@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StageBar, StagePicker, ScopeTag, money, sinceLabel } from "@/components/bits";
 import {
   addMyJob,
+  copyForAssistant,
   exportMyJobs,
   importMyJobs,
   listMyJobs,
@@ -89,7 +90,7 @@ export default function MyJobsPage() {
 
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           <button
-            onClick={() => guard(() => void navigator.clipboard.writeText(exportMyJobs()))}
+            onClick={() => guard(() => void navigator.clipboard.writeText(copyForAssistant()))}
             className="h-11 flex-1 whitespace-nowrap rounded-field border border-line px-3 text-[0.9375rem] font-medium text-soft transition hover:bg-sunken hover:text-text sm:flex-none sm:px-4 sm:text-base"
           >
             Copy for Claude
@@ -144,7 +145,8 @@ export default function MyJobsPage() {
           <h2 className="text-xl font-semibold sm:text-2xl">Add the first job you are chasing</h2>
           <p className="mt-2 max-w-md text-base text-soft sm:mx-auto">
             Paste one you found anywhere, or browse the board and add from there. Everything
-            stays in this browser.
+            stays in this browser — use Export to back it up, and Import to bring a list
+            over from another device.
           </p>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
             <button
