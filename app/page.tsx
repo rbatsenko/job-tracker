@@ -344,7 +344,7 @@ function AddForm({
   onSave,
   onCancel,
 }: {
-  onSave: (j: { company: string; title: string; url?: string | null; location?: string | null; status?: Status }) => void;
+  onSave: (j: Record<string, unknown> & { company: string; title: string }) => void;
   onCancel: () => void;
 }) {
   const [company, setCompany] = useState("");
@@ -352,29 +352,99 @@ function AddForm({
   const [url, setUrl] = useState("");
   const [location, setLocation] = useState("");
   const [status, setStatus] = useState<Status>("shortlist");
+  const [extra, setExtra] = useState<Record<string, unknown>>({});
+
+  const [looking, setLooking] = useState(false);
+  const [lookupNote, setLookupNote] = useState<string | null>(null);
+
+  /** Most jobs arrive as a link; retyping what is already on the page is the
+      tedious part. The big applicant systems publish the posting as JSON. */
+  const lookup = async (link: string) => {
+    if (!link.trim()) return;
+    setLooking(true);
+    setLookupNote(null);
+    try {
+      const res = await fetch("/api/lookup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: link }),
+      });
+      const data = (await res.json()) as Record<string, any>;
+      if (!res.ok || !data.title) {
+        setLookupNote(data.error ?? "Could not read that page — fill it in by hand.");
+        return;
+      }
+      setCompany(data.company ?? "");
+      setTitle(data.title ?? "");
+      setLocation(data.location ?? "");
+      setUrl(data.url ?? link);
+      setExtra({
+        remote_scope: data.remote_scope ?? null,
+        description: data.description ?? null,
+        salary_min: data.salary_min ?? null,
+        salary_max: data.salary_max ?? null,
+        currency: data.currency ?? null,
+        salary_period: data.salary_period ?? null,
+      });
+      setLookupNote(`Filled in from ${data.via}. Change anything that looks wrong.`);
+    } catch {
+      setLookupNote("Could not reach that page — fill it in by hand.");
+    } finally {
+      setLooking(false);
+    }
+  };
 
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
         if (!company.trim() || !title.trim()) return;
-        onSave({ company, title, url: url || null, location: location || null, status });
+        onSave({ ...extra, company, title, url: url || null, location: location || null, status });
       }}
       className="mb-6 rounded-card border border-line bg-raised p-6 shadow-[var(--shadow)]"
     >
       <h2 className="mb-5 text-xl font-semibold">Add a job</h2>
+
+      <div className="mb-5">
+        <label className={label} htmlFor="link">
+          Paste a link
+        </label>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <input
+            id="link"
+            className={field}
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            onPaste={(e) => {
+              const pasted = e.clipboardData.getData("text");
+              if (/^https?:\/\//.test(pasted.trim())) setTimeout(() => void lookup(pasted), 0);
+            }}
+            placeholder="https://job-boards.greenhouse.io/…"
+            autoFocus
+          />
+          <button
+            type="button"
+            onClick={() => void lookup(url)}
+            disabled={looking || !url.trim()}
+            className="h-11 shrink-0 whitespace-nowrap rounded-field border border-line px-4 text-base font-medium text-soft transition hover:bg-sunken hover:text-text disabled:opacity-50"
+          >
+            {looking ? "Reading…" : "Fill it in"}
+          </button>
+        </div>
+        <p className="mt-1.5 text-sm text-faint">
+          {lookupNote ??
+            "Greenhouse, Lever and Ashby links fill themselves in. Anything else, type it below."}
+        </p>
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className={label} htmlFor="c">Company</label>
-          <input id="c" className={field} value={company} onChange={(e) => setCompany(e.target.value)} autoFocus required />
+          <input id="c" className={field} value={company} onChange={(e) => setCompany(e.target.value)} required />
         </div>
         <div>
           <label className={label} htmlFor="t">Role</label>
           <input id="t" className={field} value={title} onChange={(e) => setTitle(e.target.value)} required />
-        </div>
-        <div>
-          <label className={label} htmlFor="u">Link</label>
-          <input id="u" className={field} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://" />
         </div>
         <div>
           <label className={label} htmlFor="l">Location</label>

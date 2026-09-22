@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Job Tracker">
+  <!-- A shelf of jobs, which is also the stage bar the app uses everywhere:
+       rows stacked, the top one longest. Legible down to 16px because it is
+       three shapes and two colours. -->
+  <rect width="64" height="64" rx="15" fill="#1f6f4a"/>
+  <g fill="#ffffff">
+    <rect x="14" y="16" width="36" height="8" rx="4"/>
+    <rect x="14" y="28" width="27" height="8" rx="4" opacity="0.82"/>
+    <rect x="14" y="40" width="17" height="8" rx="4" opacity="0.64"/>
+  </g>
+</svg>
