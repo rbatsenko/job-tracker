@@ -194,11 +194,49 @@ export default function MyJobsPage() {
             </div>
           </dl>
 
+          <h3 className="mt-7 text-base font-semibold">What the file looks like</h3>
+          <p className="mt-1.5 max-w-prose text-base text-soft">
+            Plain JSON. Only <strong className="font-semibold text-text">company</strong> and{" "}
+            <strong className="font-semibold text-text">title</strong> are required — leave out
+            anything you do not have, and unknown fields are ignored. Keep{" "}
+            <code className="rounded bg-sunken px-1.5 py-0.5">id</code> if you are editing an
+            existing job, or drop it and one will be made for you.
+          </p>
+
+          <pre className="scroll-thin mt-3 overflow-x-auto rounded-field border border-line bg-sunken p-4 text-sm leading-relaxed">
+{`{
+  "version": 1,
+  "jobs": [
+    {
+      "id": "mj_7f2c...",              // keep it, or omit for a new job
+      "company": "Acme",               // required
+      "title": "Senior Product Designer", // required
+      "url": "https://acme.com/jobs/12",
+      "location": "Remote (Europe)",
+      "status": "applied",
+      "notes": "Referred by Kasia",
+      "draft": "Hi — I saw you are hiring...",
+      "next_action": "Follow up Friday",
+      "applied_at": "2026-09-22T10:00:00.000Z"
+    }
+  ]
+}`}
+          </pre>
+
+          <p className="mt-3 max-w-prose text-base text-soft">
+            <strong className="font-semibold text-text">status</strong> is one of: new,
+            shortlist, drafted, applied, replied, interviewing, offer, rejected, archived.
+            Dates are ISO-8601. Salary, if you have it, goes in{" "}
+            <code className="rounded bg-sunken px-1.5 py-0.5">salary_min</code>,{" "}
+            <code className="rounded bg-sunken px-1.5 py-0.5">salary_max</code> and{" "}
+            <code className="rounded bg-sunken px-1.5 py-0.5">currency</code>.
+          </p>
+
           <p className="mt-5 max-w-prose text-sm text-faint">
             Moving from your laptop to your phone: Export on one, email or AirDrop the file to
-            yourself, Import on the other. Assistants can read{" "}
-            <a href="/llms.txt" className="text-brand underline underline-offset-4">/llms.txt</a>{" "}
-            for the full format.
+            yourself, Import on the other. The full field list is at{" "}
+            <a href="/llms.txt" className="text-brand underline underline-offset-4">/llms.txt</a>,
+            which is also what to point an assistant at.
           </p>
 
           <button
