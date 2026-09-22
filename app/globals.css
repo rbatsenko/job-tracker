@@ -1,34 +1,114 @@
 @import "tailwindcss";
 
-@theme {
-  --color-ink-950: #0b0d10;
-  --color-ink-900: #12151a;
-  --color-ink-850: #171b22;
-  --color-ink-800: #1d222b;
-  --color-ink-700: #2a313d;
-  --color-ink-500: #6b7686;
-  --color-ink-300: #a8b2c1;
-  --color-ink-100: #e6eaf0;
-  --color-accent: #f4a259;
-  --color-good: #4ade80;
-  --color-warn: #fbbf24;
-  --color-bad: #f87171;
+/*
+ * Two themes, both first-class. Colours are CSS variables that flip on
+ * :root[data-theme], and @theme maps them into Tailwind utilities so the same
+ * class works in either theme.
+ *
+ * The nine pipeline stages are deliberately NOT nine hues — a rainbow of pills
+ * is unreadable. Stage reads from position in a stepper plus its label; colour
+ * only marks the three outcomes that matter (live, won, closed).
+ */
+
+:root {
+  --bg: #fbf9f7;
+  --raised: #ffffff;
+  --sunken: #f3efec;
+  --line: #e4ddd6;
+  --line-strong: #cfc5bb;
+
+  --text: #1c1917;
+  --text-soft: #57534e;
+  --text-faint: #8b8279;
+
+  --brand: #1f6f4a;
+  --brand-text: #ffffff;
+  --brand-soft: #e6f2ea;
+
+  --live: #1f6f4a;
+  --won: #15803d;
+  --closed: #b4402f;
+  --quiet: #8b8279;
+
+  --focus: #1f6f4a;
+  --shadow: 0 1px 2px rgb(28 25 23 / 0.06), 0 8px 24px -12px rgb(28 25 23 / 0.18);
+  color-scheme: light;
 }
 
-html,
-body {
-  background: var(--color-ink-950);
-  color: var(--color-ink-100);
+:root[data-theme="dark"] {
+  --bg: #14161a;
+  --raised: #1c1f25;
+  --sunken: #101215;
+  --line: #2b3038;
+  --line-strong: #3c434e;
+
+  --text: #eceef1;
+  --text-soft: #a8b0bb;
+  --text-faint: #767e8a;
+
+  --brand: #4ade80;
+  --brand-text: #0c1410;
+  --brand-soft: #16261d;
+
+  --live: #4ade80;
+  --won: #6ee7a0;
+  --closed: #f08a78;
+  --quiet: #767e8a;
+
+  --focus: #4ade80;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 30px -14px rgb(0 0 0 / 0.7);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --font-sans: "Figtree", ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  --color-bg: var(--bg);
+  --color-raised: var(--raised);
+  --color-sunken: var(--sunken);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-text: var(--text);
+  --color-soft: var(--text-soft);
+  --color-faint: var(--text-faint);
+  --color-brand: var(--brand);
+  --color-brand-text: var(--brand-text);
+  --color-brand-soft: var(--brand-soft);
+  --color-live: var(--live);
+  --color-won: var(--won);
+  --color-closed: var(--closed);
+  --color-quiet: var(--quiet);
+
+  /* Bigger by default: base is 16px and the scale is a comfortable 1.2. */
+  --text-xs: 0.8125rem;
+  --text-sm: 0.9375rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+  --text-3xl: 2.25rem;
+
+  --radius-field: 0.625rem;
+  --radius-card: 1rem;
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
   -webkit-font-smoothing: antialiased;
 }
 
-::selection {
-  background: var(--color-accent);
-  color: #000;
+/* One visible focus treatment everywhere, keyboard users included. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 6px;
 }
 
-/* Tidy scrollbars inside the two scrolling panes. */
-.scroll-thin {
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-ink-700) transparent;
+::selection { background: var(--brand); color: var(--brand-text); }
+
+.scroll-thin { scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }

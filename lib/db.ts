@@ -211,6 +211,9 @@ export type JobFilter = {
   q?: string;
   minScore?: number;
   sort?: "score" | "newest" | "company";
+  limit?: number;
+  /** Descriptions are most of the bytes; only send them when asked. */
+  full?: boolean;
 };
 
 export function listJobs(f: JobFilter = {}): Job[] {
@@ -251,8 +254,15 @@ export function listJobs(f: JobFilter = {}): Job[] {
         ? `company COLLATE NOCASE ASC`
         : `starred DESC, fit_score DESC, COALESCE(posted_at, discovered_at) DESC`;
 
-  const sql = `SELECT * FROM jobs ${where.length ? "WHERE " + where.join(" AND ") : ""} ORDER BY ${order} LIMIT 1000`;
-  return (db().prepare(sql).all(params) as Row[]).map(hydrate);
+  // A bare request used to return every row with its full description — over a
+  // megabyte, which no agent and no phone wants.
+  const limit = Math.min(Math.max(f.limit ?? 25, 1), 1000);
+  const sql = `SELECT * FROM jobs ${where.length ? "WHERE " + where.join(" AND ") : ""} ORDER BY ${order} LIMIT ${limit}`;
+  return (db().prepare(sql).all(params) as Row[]).map((r) => {
+    const job = hydrate(r);
+    if (!f.full) job.description = job.description ? job.description.slice(0, 280) : null;
+    return job;
+  });
 }
 
 export function getJob(id: number): Job | null {

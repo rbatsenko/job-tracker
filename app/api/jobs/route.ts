@@ -34,7 +34,15 @@ export async function GET(request: Request) {
     q: sp.get("q") ?? undefined,
     minScore: minScore ? Number(minScore) : undefined,
     sort: (sp.get("sort") as JobFilter["sort"]) ?? undefined,
+    limit: sp.get("limit") ? Number(sp.get("limit")) : undefined,
+    full: sp.get("full") === "1",
   };
 
-  return Response.json({ jobs: listJobs(filter), facets: facets() });
+  const jobs = listJobs(filter);
+  return Response.json({
+    jobs,
+    facets: facets(),
+    // Say what was applied, so a caller knows it is seeing a page not the lot.
+    query: { ...filter, limit: filter.limit ?? 25, returned: jobs.length },
+  });
 }
