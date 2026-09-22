@@ -1,9 +1,13 @@
-# Pulling from boards that block servers
+# Pulling from boards that need your login
 
-`justjoin.it` sits behind Cloudflare and Work at a Startup needs your login, so
-neither can be fetched from the server. Both are read in the browser instead and
-pushed through `/import-bridge`, which works because `window.name` survives a
-cross-origin navigation.
+Work at a Startup only shows its directory to a signed-in user, so it cannot be
+fetched from the server. It is read in the browser instead and pushed through
+`/import-bridge`, which works because `window.name` survives a cross-origin
+navigation.
+
+> justjoin.it used to need this too. It no longer does — `lib/sources/justjoin.ts`
+> reads the site's own same-origin candidate API directly. The snippet below is
+> kept for boards you add that are not reachable from a server.
 
 Make sure the tracker is running (`npm run dev`) before you start.
 

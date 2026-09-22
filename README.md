@@ -13,26 +13,35 @@ Then press **Refresh boards**.
 
 ## What it does
 
-- Pulls from six boards server-side, normalises them into one shape, and scores
+- Pulls from nine boards server-side, normalises them into one shape, and scores
   each role against `lib/profile.ts`.
-- Reads the two boards that block servers (justjoin.it, Work at a Startup) from
-  the browser — see `scripts/browser-snippets.md`.
+- Reads boards that need a login (Work at a Startup) from the browser — see
+  `scripts/browser-snippets.md`.
 - Tracks status (`new → shortlist → drafted → applied → replied → interviewing →
   offer / rejected`), a star, free notes, and the draft message per job.
 
 ## Sources
 
+Nine boards answer a plain server-side request and are pulled by **Refresh
+boards**. Work at a Startup needs your login, so it comes in through a browser
+snippet — see `scripts/browser-snippets.md`.
+
 | Source | Reach | How |
 | --- | --- | --- |
+| `justjoin` | Poland | `justjoin.it/api/candidate-api/offers` (`from`/`itemsCount`, not `page`) |
+| `nofluffjobs` | Poland | search API |
+| `landingjobs` | Europe | public JSON API, salaries usually published |
+| `arbeitnow` | Europe (DACH-heavy) | public JSON API |
 | `remoteok` | worldwide | public JSON API |
 | `remotive` | worldwide | public JSON API |
+| `jobicy` | worldwide | public JSON API |
 | `himalayas` | worldwide, with location restrictions | public JSON API |
 | `weworkremotely` | worldwide | RSS |
-| `arbeitnow` | mostly Europe | public JSON API |
-| `nofluffjobs` | Poland | search API |
-| `justjoin` | Poland | browser snippet → `/import-bridge` |
 | `ycombinator` | worldwide / US-only, flagged | browser snippet → `/import-bridge` |
 | `manual` | anything | `scripts/add-job.mjs` |
+
+Adding one is a file in `lib/sources/` that returns `IncomingJob[]`, plus a line
+in `lib/sources/index.ts`. Everything else — scoring, dedup, the UI — follows.
 
 ## Scoring
 
