@@ -4,12 +4,20 @@ import type { IncomingJob } from "../types";
 const UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
 
+/**
+ * Locally the database is the cache, so every fetch goes to the board. On a
+ * read-only host the database is per-instance memory, so the platform's fetch
+ * cache is what stops each cold start from re-crawling every board.
+ */
+const cachePolicy = (): RequestInit =>
+  process.env.VERCEL ? { next: { revalidate: 1800 } } : { cache: "no-store" };
+
 export async function getJSON<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, {
+    ...cachePolicy(),
     ...init,
     headers: { "User-Agent": UA, Accept: "application/json", ...(init?.headers ?? {}) },
     signal: AbortSignal.timeout(25_000),
-    cache: "no-store",
   });
   if (!res.ok) throw new Error(`${url} → HTTP ${res.status}`);
   return (await res.json()) as T;
@@ -17,9 +25,9 @@ export async function getJSON<T>(url: string, init?: RequestInit): Promise<T> {
 
 export async function getText(url: string): Promise<string> {
   const res = await fetch(url, {
+    ...cachePolicy(),
     headers: { "User-Agent": UA },
     signal: AbortSignal.timeout(25_000),
-    cache: "no-store",
   });
   if (!res.ok) throw new Error(`${url} → HTTP ${res.status}`);
   return await res.text();

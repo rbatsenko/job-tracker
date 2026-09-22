@@ -1,10 +1,29 @@
-import { facets, listJobs } from "@/lib/db";
+import { facets, isPersistent, listJobs } from "@/lib/db";
 import type { JobFilter } from "@/lib/db";
+import { refreshSources } from "@/lib/sources";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 120;
+
+/**
+ * On a host without a writable filesystem every cold instance starts with an
+ * empty in-memory catalogue, which would show a visitor nothing until they
+ * thought to press Refresh. Fill it once, on demand.
+ */
+let filling: Promise<unknown> | null = null;
+
+async function ensureCatalogue() {
+  if (isPersistent() || facets().total > 0) return;
+  filling ??= refreshSources().finally(() => {
+    filling = null;
+  });
+  await filling;
+}
 
 export async function GET(request: Request) {
+  await ensureCatalogue();
+
   const sp = new URL(request.url).searchParams;
   const minScore = sp.get("minScore");
 

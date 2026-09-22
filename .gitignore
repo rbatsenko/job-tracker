@@ -12,3 +12,5 @@ next-env.d.ts
 # Your own application drafts and notes — personal, never committed.
 data/seed-drafts.md
 data/snapshot.json
+.vercel
+.env*
