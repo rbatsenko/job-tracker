@@ -7,8 +7,8 @@ draft message kept next to each job.
 **Live:** https://job-tracker-three-livid.vercel.app
 
 ```bash
-npm install
-npm run dev          # http://localhost:4321
+bun install
+bun run dev          # http://localhost:4321
 ```
 
 Then press **Refresh boards**.
@@ -83,6 +83,8 @@ curl -X POST localhost:4321/api/refresh -H 'content-type: application/json' -d '
 vercel deploy --prod
 ```
 
+Vercel picks up `bun.lock` and installs with Bun.
+
 There is no writable filesystem on Vercel, so `lib/db.ts` falls back to an
 in-memory database and the catalogue becomes a per-instance cache. `/api/jobs`
 fills it on the first request to each cold instance, and upstream fetches use
@@ -101,10 +103,20 @@ What this means in practice:
   bridge, so they live in whichever instance received them. Import them into
   your local copy, not the deployment.
 
+## A note on Bun
+
+Bun is the package manager and script runner here: `bun install` and `bun run dev`
+both work, and `bun.lock` is the committed lockfile.
+
+Do **not** run the app on Bun's *runtime* (`bun --bun next dev`). `better-sqlite3`
+is a native N-API addon and Bun segfaults loading it. `bun run dev` is safe
+because the `next` binary carries a `#!/usr/bin/env node` shebang, so Next still
+executes under Node — Bun only launches it.
+
 ## Scripts
 
 ```bash
-node scripts/add-job.mjs '{"url":"…","company":"…","title":"…","remote_scope":"eu","status":"applied"}'
-node scripts/seed-shortlist.mjs      # re-applies data/seed-drafts.md
-node scripts/export-snapshot.mjs 45  # data/snapshot.json, for sharing
+bun scripts/add-job.mjs '{"url":"…","company":"…","title":"…","remote_scope":"eu","status":"applied"}'
+bun scripts/seed-shortlist.mjs      # re-applies data/seed-drafts.md
+bun scripts/export-snapshot.mjs 45  # data/snapshot.json, for sharing
 ```
