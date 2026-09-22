@@ -91,14 +91,31 @@ GET ${base}/api/jobs
   sort=           score | newest | company
   limit=25        default 25, max 1000
   full=1          include whole descriptions (large — the default truncates)
+  profile=        engineering | design — OPTIONAL
 
-Returns { jobs, facets, query }. "query" repeats what was applied, so you can
-tell a page from the whole set.
+Returns { jobs, facets, query }. "query" repeats what was applied, including
+"scored": whether fit_score means anything on this response.
 
-Scoring lives in lib/score.ts and is tuned to one person's profile
-(lib/profile.ts): geography dominates, US-only roles are pushed down hard.
-Treat fit_score as that person's opinion, not an objective ranking. It is
-currently tuned for a software engineer, so it ranks design roles poorly.
+## Scores are off unless someone asks for them
+
+Without a profile, every fit_score is 0 and "scored" is false. That is
+deliberate: a ranking built from someone else's career looks authoritative and
+is wrong, so the board shows none by default.
+
+Two ways to get a ranking:
+  GET  ...?profile=engineering        a preset
+  POST ${base}/api/jobs               a profile of your own, in the body:
+
+  { "profile": {
+      "basedOn": "design",
+      "coreStack": ["figma", "design systems"],
+      "reach":  { "regions": ["eu"], "canWorkUS": false, "willRelocate": false },
+      "money":  { "floor": 60000, "strong": 90000, "currency": "EUR" }
+  } }
+
+Geography is the heaviest term and comes from "reach", so ask the person where
+they can work before ranking anything for them. Never assume they are in the
+same place as whoever deployed this.
 
 ## Source
 

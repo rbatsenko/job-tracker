@@ -211,8 +211,11 @@ export type JobFilter = {
   q?: string;
   minScore?: number;
   sort?: "score" | "newest" | "company";
-  /** Whose taste to score with. Scores are never stored per viewer. */
-  profile?: string;
+  /**
+   * Whose taste to score with — a preset name or a whole custom profile.
+   * Omitted means do not score at all.
+   */
+  profile?: string | object;
   limit?: number;
   /** Descriptions are most of the bytes; only send them when asked. */
   full?: boolean;
@@ -234,7 +237,10 @@ export function listJobs(f: JobFilter = {}): Job[] {
     params.source = f.source;
   }
   if (f.scope && f.scope !== "all") {
-    if (f.scope === "reachable") where.push(`remote_scope IN ('worldwide','eu','pl')`);
+    // "Not ruled out" rather than "confirmed": an unstated location is not a no,
+    // and more than half of design listings never state one.
+    if (f.scope === "reachable")
+      where.push(`remote_scope IN ('worldwide','eu','pl','unknown')`);
     else {
       where.push(`remote_scope = @scope`);
       params.scope = f.scope;
@@ -253,20 +259,23 @@ export function listJobs(f: JobFilter = {}): Job[] {
         : `COALESCE(posted_at, discovered_at) DESC`;
 
   // Scoring happens here rather than in SQL, because the score depends on who
-  // is looking. Re-ranking ~1000 rows in memory is cheap; baking one person's
-  // taste into a shared column is not.
+  // is looking — and when nobody has said who they are, it does not happen at
+  // all. A ranking built from someone else's CV is worse than no ranking.
   const sql = `SELECT * FROM jobs ${where.length ? "WHERE " + where.join(" AND ") : ""} ORDER BY ${order} LIMIT 4000`;
   const rows = (db().prepare(sql).all(params) as Row[]).map(hydrate);
 
-  const scored = rows.map((job) => {
-    const { score, reasons } = scoreJob({ ...job, tags: job.tags }, f.profile);
-    return { ...job, fit_score: score, fit_reasons: reasons };
-  });
+  const ranking = f.profile ?? null;
+  const scored = ranking
+    ? rows.map((job) => {
+        const { score, reasons } = scoreJob({ ...job, tags: job.tags }, ranking);
+        return { ...job, fit_score: score, fit_reasons: reasons };
+      })
+    : rows.map((job) => ({ ...job, fit_score: 0, fit_reasons: [] as string[] }));
 
-  const min = f.minScore ?? 0;
+  const min = ranking ? (f.minScore ?? 0) : 0;
   const filtered = min > 0 ? scored.filter((j) => j.fit_score >= min) : scored;
 
-  if (f.sort !== "newest" && f.sort !== "company") {
+  if (ranking && f.sort !== "newest" && f.sort !== "company") {
     filtered.sort((a, b) => b.fit_score - a.fit_score);
   }
 

@@ -1,4 +1,4 @@
-import { getProfile, type Profile } from "./profile";
+import { getProfile, resolveProfile, type Profile } from "./profile";
 import type { IncomingJob, Scope } from "./types";
 
 /** Talent marketplaces that repost the same listings across every board. */
@@ -28,9 +28,12 @@ const has = (haystack: string, needles: readonly string[]) =>
  */
 export function scoreJob(
   job: IncomingJob,
-  profileKey?: string | null,
+  profileOrKey?: string | null | object,
 ): { score: number; reasons: string[] } {
-  const PROFILE: Profile = getProfile(profileKey);
+  const PROFILE: Profile =
+    typeof profileOrKey === "object" && profileOrKey !== null
+      ? resolveProfile(profileOrKey)
+      : getProfile(profileOrKey as string | null | undefined);
   const title = job.title.toLowerCase();
   const blob = [
     job.title,
@@ -46,19 +49,29 @@ export function scoreJob(
 
   // --- geography -----------------------------------------------------------
   const scope: Scope = job.remote_scope ?? "unknown";
-  const geo: Record<Scope, number> = {
-    worldwide: 22,
-    eu: 20,
-    pl: 18,
-    unknown: 0,
-    other: -12,
-    us: -35,
-  };
-  score += geo[scope];
-  if (scope === "us") reasons.push("US-only remote — likely a dead end");
-  else if (scope === "worldwide") reasons.push("Remote worldwide");
-  else if (scope === "eu") reasons.push("Remote within Europe");
-  else if (scope === "pl") reasons.push("Poland-based / Polish remote");
+  const { regions, canWorkUS, willRelocate } = PROFILE.reach;
+  const wantsWorldwide = regions.includes("worldwide");
+
+  if (scope === "us") {
+    // A US-only role is either the best case or a dead end; nothing in between.
+    score += canWorkUS ? 20 : -35;
+    reasons.push(canWorkUS ? "US-based, which works for you" : "US-only — likely a dead end");
+  } else if (scope === "worldwide") {
+    score += 22;
+    reasons.push("Remote worldwide");
+  } else if (regions.includes(scope)) {
+    score += 20;
+    reasons.push(`Remote in ${scope.toUpperCase()}, where you can work`);
+  } else if (scope === "other") {
+    score += willRelocate ? 4 : -12;
+    if (!willRelocate) reasons.push("On-site, outside where you work");
+  } else if (scope === "unknown") {
+    // Not stated is not the same as ruled out.
+    score += wantsWorldwide ? 6 : 2;
+  } else {
+    score += wantsWorldwide ? 8 : -6;
+    if (!wantsWorldwide) reasons.push(`Remote in ${scope.toUpperCase()}, outside your regions`);
+  }
 
   // --- stack ---------------------------------------------------------------
   const core = has(blob, PROFILE.coreStack);
@@ -108,20 +121,27 @@ export function scoreJob(
   if (/\b(senior|staff|lead|principal)\b/.test(title)) reasons.push("Senior-level title");
 
   // --- pay -----------------------------------------------------------------
-  if (job.salary_max) {
+  const { floor, strong, currency } = PROFILE.money;
+  if (job.salary_max && (floor > 0 || strong > 0)) {
     const yearly =
       job.salary_period === "month"
         ? job.salary_max * 12
         : job.salary_period === "hour"
           ? job.salary_max * 1800
           : job.salary_max;
-    const eur = job.currency === "PLN" ? yearly / 4.3 : yearly;
-    if (eur >= 90_000) {
+
+    // Rough, but enough to compare a band against an expectation.
+    const TO_EUR: Record<string, number> = { EUR: 1, USD: 0.92, GBP: 1.17, PLN: 0.23 };
+    const inEur = yearly * (TO_EUR[job.currency ?? "USD"] ?? 1);
+    const strongEur = strong * (TO_EUR[currency] ?? 1);
+    const floorEur = floor * (TO_EUR[currency] ?? 1);
+
+    if (strongEur > 0 && inEur >= strongEur) {
       score += 6;
-      reasons.push("Top of band is strong");
-    } else if (eur > 0 && eur < 45_000) {
+      reasons.push("Top of band is strong for you");
+    } else if (floorEur > 0 && inEur > 0 && inEur < floorEur) {
       score -= 8;
-      reasons.push("Band looks low for senior");
+      reasons.push("Below the salary you set");
     }
   }
 
