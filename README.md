@@ -4,6 +4,8 @@ One place for remote engineering roles that are actually open to someone in
 Poland, scored against a profile you control, with the application status and
 draft message kept next to each job.
 
+**Live:** https://job-tracker-three-livid.vercel.app
+
 ```bash
 npm install
 npm run dev          # http://localhost:4321
@@ -77,10 +79,27 @@ curl -X POST localhost:4321/api/refresh -H 'content-type: application/json' -d '
 
 ## Deploying
 
-It runs on Vercel as-is. There is no writable filesystem there, so `lib/db.ts`
-falls back to an in-memory database: the catalogue becomes a per-instance cache
-that **Refresh boards** repopulates, and everyone's tracking state stays in their
-own browser. `data/jobs.db` is the durable copy, locally.
+```bash
+vercel deploy --prod
+```
+
+There is no writable filesystem on Vercel, so `lib/db.ts` falls back to an
+in-memory database and the catalogue becomes a per-instance cache. `/api/jobs`
+fills it on the first request to each cold instance, and upstream fetches use
+the platform fetch cache (30 min) so that refill costs one round of cheap,
+shared requests rather than a full re-crawl.
+
+What this means in practice:
+
+- **Sharing works without accounts.** Everyone who opens the deployment gets the
+  same catalogue and keeps their own status, notes and drafts in their own
+  browser. Nothing you type is sent anywhere.
+- **`localStorage` is per-browser.** It does not follow you to another device,
+  and clearing site data clears it. `data/jobs.db` on your own machine is the
+  durable copy — run locally if the history matters to you.
+- **Work at a Startup roles are local-only.** They arrive through the browser
+  bridge, so they live in whichever instance received them. Import them into
+  your local copy, not the deployment.
 
 ## Scripts
 
