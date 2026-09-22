@@ -1,4 +1,4 @@
-import { PROFILE } from "./profile";
+import { getProfile, type Profile } from "./profile";
 import type { IncomingJob, Scope } from "./types";
 
 /** Talent marketplaces that repost the same listings across every board. */
@@ -26,7 +26,11 @@ const has = (haystack: string, needles: readonly string[]) =>
  * role that can only be done from California is worth less than a good one
  * that is actually open to him.
  */
-export function scoreJob(job: IncomingJob): { score: number; reasons: string[] } {
+export function scoreJob(
+  job: IncomingJob,
+  profileKey?: string | null,
+): { score: number; reasons: string[] } {
+  const PROFILE: Profile = getProfile(profileKey);
   const title = job.title.toLowerCase();
   const blob = [
     job.title,
@@ -82,11 +86,25 @@ export function scoreJob(job: IncomingJob): { score: number; reasons: string[] }
   if (bonus.length) reasons.push(`Topics: ${bonus.slice(0, 3).join(", ")}`);
 
   // --- title ---------------------------------------------------------------
+  // Seniority words say how senior, not what kind of job. Keep them out of the
+  // test for "is this even the right family".
+  const SENIORITY = ["senior", "staff", "lead", "principal", "head of"];
+  const familyTitles = PROFILE.goodTitles.filter((t) => !SENIORITY.includes(t));
+  const familyHit = has(title, familyTitles);
+
   const good = has(title, PROFILE.goodTitles);
   const bad = has(title, PROFILE.badTitles);
   score += Math.min(good.length * 3, 8);
   score -= bad.length * 25;
   if (bad.length) reasons.push(`Off-profile title: ${bad.join(", ")}`);
+
+  // A description can be full of the right words while the job is something
+  // else — a design studio hiring a Shopify developer reads as a design role
+  // until you look at the title.
+  if (!familyHit.length) {
+    score -= 14;
+    reasons.push("Title does not name this kind of role");
+  }
   if (/\b(senior|staff|lead|principal)\b/.test(title)) reasons.push("Senior-level title");
 
   // --- pay -----------------------------------------------------------------

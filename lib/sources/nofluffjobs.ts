@@ -23,6 +23,8 @@ const QUERIES = [
   "remote node",
   "remote senior frontend",
   "remote fullstack",
+  "remote ux designer",
+  "remote product designer",
 ];
 
 /** Poland's biggest IT board after justjoin.it, and it answers server-side. */

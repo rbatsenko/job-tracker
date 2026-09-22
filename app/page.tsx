@@ -20,6 +20,8 @@ export default function MyJobsPage() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [showHelp, setShowHelp] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   /** Mirror to SQLite when the app runs somewhere with a real filesystem. */
@@ -66,10 +68,21 @@ export default function MyJobsPage() {
       void text;
     });
     const raw = await file.text();
-    guard(() => {
+    try {
       const n = importMyJobs(raw, "merge");
-      setError(n === 0 ? "Nothing new in that file — everything was already here." : null);
-    });
+      setError(null);
+      setNotice(
+        n === 0
+          ? "That file held nothing new — anything already here was updated."
+          : `Added ${n} ${n === 1 ? "job" : "jobs"}.`,
+      );
+      refresh();
+    } catch (e) {
+      setNotice(null);
+      setError(
+        `That file could not be read${e instanceof Error ? `: ${e.message}` : ""}. It should be a my-jobs.json exported from this app.`,
+      );
+    }
   };
 
   return (
@@ -90,7 +103,12 @@ export default function MyJobsPage() {
 
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           <button
-            onClick={() => guard(() => void navigator.clipboard.writeText(copyForAssistant()))}
+            onClick={() =>
+              guard(() => {
+                void navigator.clipboard.writeText(copyForAssistant());
+                setNotice("Copied. Paste it into Claude — it includes instructions.");
+              })
+            }
             className="h-11 flex-1 whitespace-nowrap rounded-field border border-line px-3 text-[0.9375rem] font-medium text-soft transition hover:bg-sunken hover:text-text sm:flex-none sm:px-4 sm:text-base"
           >
             Copy for Claude
@@ -126,6 +144,14 @@ export default function MyJobsPage() {
             }}
           />
           <button
+            onClick={() => setShowHelp((v) => !v)}
+            aria-expanded={showHelp}
+            className="h-11 w-11 shrink-0 rounded-field border border-line text-base font-medium text-soft transition hover:bg-sunken hover:text-text"
+            title="How saving and syncing works"
+          >
+            ?
+          </button>
+          <button
             onClick={() => setAdding(true)}
             className="h-11 w-full whitespace-nowrap rounded-field bg-brand px-5 text-base font-semibold text-brand-text transition hover:brightness-110 sm:w-auto"
           >
@@ -133,6 +159,62 @@ export default function MyJobsPage() {
           </button>
         </div>
       </div>
+
+      {showHelp && (
+        <section className="mb-6 rounded-card border border-line bg-raised p-5 shadow-[var(--shadow)] sm:p-6">
+          <h2 className="text-lg font-semibold">Where your jobs are saved</h2>
+          <p className="mt-2 max-w-prose text-base text-soft">
+            Only in this browser. Nothing is sent to a server, so your notes and drafts stay
+            with you — but they will not appear on your phone, on another browser, or after
+            you clear site data. Export is how you move them and how you back them up.
+          </p>
+
+          <dl className="mt-5 space-y-4">
+            <div>
+              <dt className="text-base font-semibold">Export</dt>
+              <dd className="mt-0.5 max-w-prose text-base text-soft">
+                Downloads <code className="rounded bg-sunken px-1.5 py-0.5">my-jobs.json</code>{" "}
+                with everything — stages, notes, drafts, dates. Keep it somewhere safe.
+              </dd>
+            </div>
+            <div>
+              <dt className="text-base font-semibold">Import</dt>
+              <dd className="mt-0.5 max-w-prose text-base text-soft">
+                Takes that same file back. It merges rather than replaces, so a job you already
+                have is updated instead of duplicated. Safe to run twice.
+              </dd>
+            </div>
+            <div>
+              <dt className="text-base font-semibold">Copy for Claude</dt>
+              <dd className="mt-0.5 max-w-prose text-base text-soft">
+                Puts your list on the clipboard together with instructions for an assistant.
+                Paste it into Claude and ask it to rank your jobs or draft a message. If it
+                gives you an edited list back, save it as a file and use Import.
+              </dd>
+            </div>
+          </dl>
+
+          <p className="mt-5 max-w-prose text-sm text-faint">
+            Moving from your laptop to your phone: Export on one, email or AirDrop the file to
+            yourself, Import on the other. Assistants can read{" "}
+            <a href="/llms.txt" className="text-brand underline underline-offset-4">/llms.txt</a>{" "}
+            for the full format.
+          </p>
+
+          <button
+            onClick={() => setShowHelp(false)}
+            className="mt-5 h-11 rounded-field border border-line px-4 text-base font-medium text-soft hover:bg-sunken"
+          >
+            Got it
+          </button>
+        </section>
+      )}
+
+      {notice && (
+        <p className="mb-5 rounded-field border border-brand/40 bg-brand-soft px-4 py-3 text-base text-brand">
+          {notice}
+        </p>
+      )}
 
       {error && (
         <p className="mb-5 rounded-field border border-closed/40 bg-closed/10 px-4 py-3 text-base text-closed">
@@ -145,8 +227,7 @@ export default function MyJobsPage() {
           <h2 className="text-xl font-semibold sm:text-2xl">Add the first job you are chasing</h2>
           <p className="mt-2 max-w-md text-base text-soft sm:mx-auto">
             Paste one you found anywhere, or browse the board and add from there. Everything
-            stays in this browser — use Export to back it up, and Import to bring a list
-            over from another device.
+            stays in this browser.
           </p>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
             <button

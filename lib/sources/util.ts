@@ -1,4 +1,4 @@
-import { PROFILE } from "../profile";
+import { ALL_RELEVANCE, PROFILES } from "../profile";
 import type { IncomingJob } from "../types";
 
 const UA =
@@ -65,20 +65,20 @@ export function stripHtml(html: string | null | undefined, max = 4000): string |
   return text.slice(0, max);
 }
 
+/**
+ * The gate is the UNION across every profile. Filtering here by one person's
+ * stack is what previously threw away every design role before it was stored.
+ */
 const RELEVANT = [
-  ...PROFILE.coreStack,
-  ...PROFILE.secondaryStack,
-  "software engineer",
-  "web developer",
-  "full stack",
-  "fullstack",
-  "frontend",
-  "front end",
-  "backend",
-  "back end",
-  "product engineer",
+  ...ALL_RELEVANCE,
+  ...Object.values(PROFILES).flatMap((p) => p.coreStack),
 ];
 
+/**
+ * Universal exclusions only. "marketing manager" and "social media" used to be
+ * here and wrongly caught legitimate design roles, so they are gone — an
+ * off-profile title is handled by scoring, not by refusing to store it.
+ */
 const DISQUALIFY = [
   "junior",
   "intern",
@@ -87,14 +87,12 @@ const DISQUALIFY = [
   "recruiter",
   "account executive",
   "sales development",
-  "customer success",
-  "marketing manager",
-  "social media",
 ];
 
 /**
- * Cheap gate applied before anything is stored: keeps the database about
- * Roman's work rather than about every remote job on the internet.
+ * Cheap gate applied before anything is stored: keeps the database about work
+ * someone here might actually want, rather than every remote job on the
+ * internet — without deciding whose taste wins.
  */
 export function isRelevant(job: IncomingJob): boolean {
   const title = job.title.toLowerCase();

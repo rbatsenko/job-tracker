@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ScopeTag, money } from "@/components/bits";
 import { addFromBoard, trackedOrigins } from "@/lib/my-jobs";
+import { PROFILES, DEFAULT_PROFILE, type ProfileKey } from "@/lib/profile";
 import type { Job } from "@/lib/types";
 
 type Payload = { jobs: Job[]; facets: { sources: { source: string; n: number }[]; total: number } };
@@ -20,15 +21,29 @@ export default function Board() {
   const [scope, setScope] = useState("reachable");
   const [source, setSource] = useState("all");
   const [sort, setSort] = useState("score");
+  const [profile, setProfile] = useState<ProfileKey>(DEFAULT_PROFILE);
+
+  // Whose taste ranks this board. Each viewer keeps their own.
+  useEffect(() => {
+    const stored = localStorage.getItem("job-tracker:profile") as ProfileKey | null;
+    if (stored && stored in PROFILES) setProfile(stored);
+  }, []);
+
+  const chooseProfile = (p: ProfileKey) => {
+    setProfile(p);
+    try {
+      localStorage.setItem("job-tracker:profile", p);
+    } catch {}
+  };
 
   useEffect(() => setTracked(trackedOrigins()), []);
 
   const load = useCallback(async () => {
-    const p = new URLSearchParams({ scope, source, sort, limit: "300" });
+    const p = new URLSearchParams({ scope, source, sort, profile, limit: "300" });
     if (q) p.set("q", q);
     const res = await fetch(`/api/jobs?${p}`, { cache: "no-store" });
     setData((await res.json()) as Payload);
-  }, [q, scope, source, sort]);
+  }, [q, scope, source, sort, profile]);
 
   useEffect(() => {
     const t = setTimeout(load, q ? 250 : 0);
@@ -97,6 +112,25 @@ export default function Board() {
           >
             {busy ? "Fetching…" : "Fetch new jobs"}
           </button>
+        </div>
+      </div>
+
+      <div className="mb-4 flex items-center gap-2">
+        <span className="text-sm text-faint">Rank for</span>
+        <div role="radiogroup" aria-label="Rank jobs for" className="flex gap-0.5 rounded-field border border-line bg-sunken p-1">
+          {(Object.keys(PROFILES) as ProfileKey[]).map((k) => (
+            <button
+              key={k}
+              role="radio"
+              aria-checked={profile === k}
+              onClick={() => chooseProfile(k)}
+              className={`h-9 rounded-md px-3.5 text-[0.9375rem] font-medium transition ${
+                profile === k ? "bg-raised text-text shadow-sm" : "text-faint hover:text-soft"
+              }`}
+            >
+              {PROFILES[k].label}
+            </button>
+          ))}
         </div>
       </div>
 

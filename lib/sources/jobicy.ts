@@ -25,10 +25,26 @@ const num = (v: unknown) => {
   return Number.isFinite(n) && n > 0 ? n : null;
 };
 
+// Jobicy files design under "design-multimedia"; plain "design" returns nothing.
+const INDUSTRIES = ["engineering", "design-multimedia"];
+
 export async function fetchJobicy(): Promise<IncomingJob[]> {
-  const data = await getJSON<{ jobs: Row[] }>(
-    "https://jobicy.com/api/v2/remote-jobs?count=100&industry=engineering",
+  const batches = await Promise.all(
+    INDUSTRIES.map((industry) =>
+      getJSON<{ jobs: Row[] }>(
+        `https://jobicy.com/api/v2/remote-jobs?count=100&industry=${industry}`,
+      ).catch(() => ({ jobs: [] as Row[] })),
+    ),
   );
+  const seen = new Set<string>();
+  const data = {
+    jobs: batches.flatMap((b) => b.jobs ?? []).filter((r) => {
+      const id = String(r.id);
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    }),
+  };
   return (data.jobs ?? [])
     .map<IncomingJob>((r) => ({
       source: "jobicy",

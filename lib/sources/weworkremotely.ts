@@ -6,6 +6,7 @@ const FEEDS = [
   "https://weworkremotely.com/categories/remote-programming-jobs.rss",
   "https://weworkremotely.com/categories/remote-full-stack-programming-jobs.rss",
   "https://weworkremotely.com/categories/remote-front-end-programming-jobs.rss",
+  "https://weworkremotely.com/categories/remote-design-jobs.rss",
 ];
 
 const tag = (xml: string, name: string) => {

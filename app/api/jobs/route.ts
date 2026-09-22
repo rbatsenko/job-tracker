@@ -34,6 +34,7 @@ export async function GET(request: Request) {
     q: sp.get("q") ?? undefined,
     minScore: minScore ? Number(minScore) : undefined,
     sort: (sp.get("sort") as JobFilter["sort"]) ?? undefined,
+    profile: sp.get("profile") ?? undefined,
     limit: sp.get("limit") ? Number(sp.get("limit")) : undefined,
     full: sp.get("full") === "1",
   };

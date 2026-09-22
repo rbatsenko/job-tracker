@@ -17,7 +17,7 @@ type Row = {
 
 export async function fetchRemotive(): Promise<IncomingJob[]> {
   const out: IncomingJob[] = [];
-  for (const category of ["software-dev", "devops"]) {
+  for (const category of ["software-dev", "devops", "design"]) {
     const data = await getJSON<{ jobs: Row[] }>(
       `https://remotive.com/api/remote-jobs?category=${category}&limit=120`,
     );

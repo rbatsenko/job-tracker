@@ -211,6 +211,8 @@ export type JobFilter = {
   q?: string;
   minScore?: number;
   sort?: "score" | "newest" | "company";
+  /** Whose taste to score with. Scores are never stored per viewer. */
+  profile?: string;
   limit?: number;
   /** Descriptions are most of the bytes; only send them when asked. */
   full?: boolean;
@@ -238,10 +240,6 @@ export function listJobs(f: JobFilter = {}): Job[] {
       params.scope = f.scope;
     }
   }
-  if (typeof f.minScore === "number") {
-    where.push(`fit_score >= @minScore`);
-    params.minScore = f.minScore;
-  }
   if (f.q) {
     where.push(`(company LIKE @q OR title LIKE @q OR tags LIKE @q OR location LIKE @q)`);
     params.q = `%${f.q}%`;
@@ -252,17 +250,31 @@ export function listJobs(f: JobFilter = {}): Job[] {
       ? `COALESCE(posted_at, discovered_at) DESC`
       : f.sort === "company"
         ? `company COLLATE NOCASE ASC`
-        : `starred DESC, fit_score DESC, COALESCE(posted_at, discovered_at) DESC`;
+        : `COALESCE(posted_at, discovered_at) DESC`;
 
-  // A bare request used to return every row with its full description — over a
-  // megabyte, which no agent and no phone wants.
-  const limit = Math.min(Math.max(f.limit ?? 25, 1), 1000);
-  const sql = `SELECT * FROM jobs ${where.length ? "WHERE " + where.join(" AND ") : ""} ORDER BY ${order} LIMIT ${limit}`;
-  return (db().prepare(sql).all(params) as Row[]).map((r) => {
-    const job = hydrate(r);
-    if (!f.full) job.description = job.description ? job.description.slice(0, 280) : null;
-    return job;
+  // Scoring happens here rather than in SQL, because the score depends on who
+  // is looking. Re-ranking ~1000 rows in memory is cheap; baking one person's
+  // taste into a shared column is not.
+  const sql = `SELECT * FROM jobs ${where.length ? "WHERE " + where.join(" AND ") : ""} ORDER BY ${order} LIMIT 4000`;
+  const rows = (db().prepare(sql).all(params) as Row[]).map(hydrate);
+
+  const scored = rows.map((job) => {
+    const { score, reasons } = scoreJob({ ...job, tags: job.tags }, f.profile);
+    return { ...job, fit_score: score, fit_reasons: reasons };
   });
+
+  const min = f.minScore ?? 0;
+  const filtered = min > 0 ? scored.filter((j) => j.fit_score >= min) : scored;
+
+  if (f.sort !== "newest" && f.sort !== "company") {
+    filtered.sort((a, b) => b.fit_score - a.fit_score);
+  }
+
+  const limit = Math.min(Math.max(f.limit ?? 25, 1), 1000);
+  return filtered.slice(0, limit).map((job) => ({
+    ...job,
+    description: f.full ? job.description : job.description ? job.description.slice(0, 280) : null,
+  }));
 }
 
 export function getJob(id: number): Job | null {
