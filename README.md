@@ -108,15 +108,20 @@ What this means in practice:
 Bun is the package manager and script runner here: `bun install` and `bun run dev`
 both work, and `bun.lock` is the committed lockfile.
 
-Do **not** run the app on Bun's *runtime* (`bun --bun next dev`). `better-sqlite3`
-is a native N-API addon and Bun segfaults loading it. `bun run dev` is safe
-because the `next` binary carries a `#!/usr/bin/env node` shebang, so Next still
-executes under Node — Bun only launches it.
+Do **not** run anything that loads `better-sqlite3` on Bun's *runtime*. It is a
+native N-API addon and Bun panics on it (`NAPI FATAL ERROR: Error::New`). That
+means:
+
+- `bun install`, `bun run dev`, `bun run build` — fine. The `next` binary carries
+  a `#!/usr/bin/env node` shebang, so Bun only launches it and Next runs on Node.
+- `bun --bun next dev` — crashes.
+- `bun scripts/*.mjs` — crashes. The scripts in `scripts/` open the database
+  directly, so run them with `node`.
 
 ## Scripts
 
 ```bash
-bun scripts/add-job.mjs '{"url":"…","company":"…","title":"…","remote_scope":"eu","status":"applied"}'
-bun scripts/seed-shortlist.mjs      # re-applies data/seed-drafts.md
-bun scripts/export-snapshot.mjs 45  # data/snapshot.json, for sharing
+node scripts/add-job.mjs '{"url":"…","company":"…","title":"…","remote_scope":"eu","status":"applied"}'
+node scripts/seed-shortlist.mjs      # re-applies data/seed-drafts.md
+node scripts/export-snapshot.mjs 45  # data/snapshot.json, for sharing
 ```
