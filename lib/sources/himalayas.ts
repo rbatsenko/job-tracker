@@ -21,9 +21,15 @@ type Row = {
 
 export async function fetchHimalayas(): Promise<IncomingJob[]> {
   const out: IncomingJob[] = [];
-  for (let offset = 0; offset < 200; offset += 100) {
-    const data = await getJSON<{ jobs: Row[] }>(
-      `https://himalayas.app/jobs/api?limit=100&offset=${offset}`,
+
+  // The feed caps a page at 20 rows whatever limit you ask for, and its own
+  // response says offset is deprecated in favour of a cursor. Paging by
+  // offset=0,100 therefore read rows 0-19, skipped 20-99 entirely, and asked
+  // for a second page that no longer exists.
+  let cursor: string | undefined;
+  for (let page = 0; page < 20; page++) {
+    const data = await getJSON<{ jobs: Row[]; nextCursor?: string }>(
+      `https://himalayas.app/jobs/api?limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
     );
     if (!data.jobs?.length) break;
     for (const r of data.jobs) {
@@ -51,6 +57,8 @@ export async function fetchHimalayas(): Promise<IncomingJob[]> {
         salary_period: r.salaryPeriod === "annual" ? "year" : (r.salaryPeriod ?? null),
       });
     }
+    if (!data.nextCursor) break;
+    cursor = data.nextCursor;
   }
   return out.filter(isRelevant);
 }
