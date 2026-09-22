@@ -22,11 +22,15 @@ export default function Board() {
   const [source, setSource] = useState("all");
   const [sort, setSort] = useState("score");
   const [profile, setProfile] = useState<ProfileKey>(DEFAULT_PROFILE);
+  // Hold the first fetch until the stored profile is known, otherwise a
+  // designer sees a screen of engineering roles before it corrects itself.
+  const [profileReady, setProfileReady] = useState(false);
 
   // Whose taste ranks this board. Each viewer keeps their own.
   useEffect(() => {
     const stored = localStorage.getItem("job-tracker:profile") as ProfileKey | null;
     if (stored && stored in PROFILES) setProfile(stored);
+    setProfileReady(true);
   }, []);
 
   const chooseProfile = (p: ProfileKey) => {
@@ -46,9 +50,10 @@ export default function Board() {
   }, [q, scope, source, sort, profile]);
 
   useEffect(() => {
+    if (!profileReady) return;
     const t = setTimeout(load, q ? 250 : 0);
     return () => clearTimeout(t);
-  }, [load, q]);
+  }, [load, q, profileReady]);
 
   const refresh = async () => {
     setBusy(true);
