@@ -9,8 +9,9 @@ data/*.db-shm
 *.tsbuildinfo
 next-env.d.ts
 
-# Your own application drafts and notes — personal, never committed.
-data/seed-drafts.md
-data/snapshot.json
+# Your own application drafts, notes and exported job lists — personal.
+# Everything under data/ is yours except the example, which is the format doc.
+data/*
+!data/seed-drafts.example.md
 .vercel
 .env*
