@@ -1,5 +1,6 @@
 "use client";
 
+import { countryName } from "@/lib/countries";
 import { STATUSES, type Status } from "@/lib/types";
 
 /** Where each stage sits in the search, and what it means for the outcome. */
@@ -95,14 +96,15 @@ export function money(j: {
   return `${sym}${lo}${k(j.salary_max)}${suffix}${per}`;
 }
 
-export const SCOPE_LABEL: Record<string, string> = {
+const FIXED: Record<string, string> = {
   worldwide: "Remote worldwide",
   eu: "Remote in Europe",
-  pl: "Poland",
   us: "US only",
   other: "On-site",
-  unknown: "Unclear",
+  unknown: "Location not stated",
 };
+
+export const scopeLabel = (scope: string) => FIXED[scope] ?? countryName(scope);
 
 export function ScopeTag({ scope }: { scope: string }) {
   const bad = scope === "us" || scope === "other";
@@ -112,7 +114,7 @@ export function ScopeTag({ scope }: { scope: string }) {
         bad ? "bg-sunken text-faint" : "bg-brand-soft text-brand"
       }`}
     >
-      {SCOPE_LABEL[scope] ?? scope}
+      {scopeLabel(scope)}
     </span>
   );
 }

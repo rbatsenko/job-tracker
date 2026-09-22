@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
-import { scoreJob } from "./score";
+import { inferScope, scoreJob } from "./score";
 import type { IncomingJob, Job, Status } from "./types";
 
 const DB_PATH = path.join(process.cwd(), "data", "jobs.db");
@@ -346,6 +346,38 @@ export function recordRun(source: string, found: number, inserted: number, error
   db()
     .prepare(`INSERT INTO runs (at, source, found, inserted, error) VALUES (?, ?, ?, ?, ?)`)
     .run(new Date().toISOString(), source, found, inserted, error ?? null);
+}
+
+/**
+ * Re-reads each job's country from its stored location. Needed whenever
+ * inferScope learns to recognise more places — it used to know only Poland,
+ * so everywhere else was filed as "other" or left unknown.
+ */
+export function rescopeAll(): { changed: number; moves: Record<string, number> } {
+  const d = db();
+  const rows = d.prepare(`SELECT id, location, remote_scope FROM jobs`).all() as {
+    id: number;
+    location: string | null;
+    remote_scope: string;
+  }[];
+  const stmt = d.prepare(`UPDATE jobs SET remote_scope = ? WHERE id = ?`);
+
+  let changed = 0;
+  const moves: Record<string, number> = {};
+  const tx = d.transaction(() => {
+    for (const r of rows) {
+      // "us" came from a board's own visa flag, which a location string cannot
+      // contradict. Everything else is fair game.
+      if (r.remote_scope === "us") continue;
+      const next = inferScope(r.location);
+      if (next === "unknown" || next === r.remote_scope) continue;
+      moves[`${r.remote_scope} → ${next}`] = (moves[`${r.remote_scope} → ${next}`] ?? 0) + 1;
+      changed++;
+      stmt.run(next, r.id);
+    }
+  });
+  tx();
+  return { changed, moves };
 }
 
 /** Re-runs the scorer over everything already stored, after a profile tweak. */

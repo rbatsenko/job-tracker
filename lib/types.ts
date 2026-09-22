@@ -12,9 +12,14 @@ export const STATUSES = [
 
 export type Status = (typeof STATUSES)[number];
 
-/** How far the remote policy reaches, from Kraków's point of view. */
-export const SCOPES = ["worldwide", "eu", "pl", "us", "other", "unknown"] as const;
-export type Scope = (typeof SCOPES)[number];
+/**
+ * How far a listing reaches: "worldwide", "eu", "other" (on-site somewhere we
+ * could not place), "unknown", or a two-letter country code such as "pl" or
+ * "de". It used to be a closed list with Poland as the only country, which
+ * made every other country "other".
+ */
+export const SCOPE_KEYWORDS = ["worldwide", "eu", "other", "unknown"] as const;
+export type Scope = string;
 
 export type Job = {
   id: number;

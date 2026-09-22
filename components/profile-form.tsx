@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { COUNTRY_OPTIONS, countryName } from "@/lib/countries";
 import {
   BLANK_PROFILE,
   splitList,
@@ -11,10 +12,10 @@ const field =
   "h-11 w-full rounded-field border border-line bg-bg px-3.5 text-base outline-none focus:border-brand";
 const label = "mb-1.5 block text-base font-medium";
 
-const REGIONS: { key: string; label: string }[] = [
+/** Broad strokes; specific countries come from the picker below them. */
+const BROAD: { key: string; label: string }[] = [
   { key: "worldwide", label: "Anywhere remote" },
-  { key: "eu", label: "Europe" },
-  { key: "pl", label: "Poland" },
+  { key: "eu", label: "Anywhere in Europe" },
 ];
 
 export default function ProfileForm({
@@ -39,6 +40,8 @@ export default function ProfileForm({
 
   const toggleRegion = (k: string) =>
     setRegions((r) => (r.includes(k) ? r.filter((x) => x !== k) : [...r, k]));
+
+  const countryPicks = regions.filter((r) => r !== "worldwide" && r !== "eu");
 
   return (
     <form
@@ -105,7 +108,7 @@ export default function ProfileForm({
         <fieldset>
           <legend className={label}>Where can you work</legend>
           <div className="flex flex-wrap gap-2">
-            {REGIONS.map((r) => (
+            {BROAD.map((r) => (
               <button
                 key={r.key}
                 type="button"
@@ -120,18 +123,53 @@ export default function ProfileForm({
                 {r.label}
               </button>
             ))}
-            <button
-              type="button"
-              onClick={() => setCanWorkUS((v) => !v)}
-              aria-pressed={canWorkUS}
-              className={`h-11 rounded-field px-4 text-base font-medium transition ${
-                canWorkUS ? "bg-brand-soft text-brand" : "border border-line text-soft hover:bg-sunken"
-              }`}
-            >
-              United States
-            </button>
           </div>
-          <label className="mt-3 flex items-center gap-2.5 text-base text-soft">
+
+          <div className="mt-3">
+            <select
+              value=""
+              onChange={(e) => {
+                if (e.target.value) toggleRegion(e.target.value);
+              }}
+              aria-label="Add a country"
+              className="h-11 w-full rounded-field border border-line bg-bg px-3 text-base sm:w-72"
+            >
+              <option value="">Add a country…</option>
+              {COUNTRY_OPTIONS.filter((c) => !regions.includes(c.code)).map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {countryPicks.length > 0 && (
+            <ul className="mt-3 flex flex-wrap gap-2">
+              {countryPicks.map((code) => (
+                <li key={code}>
+                  <button
+                    type="button"
+                    onClick={() => toggleRegion(code)}
+                    className="flex h-9 items-center gap-2 rounded-md bg-brand-soft px-3 text-sm font-medium text-brand"
+                    aria-label={`Remove ${countryName(code)}`}
+                  >
+                    {countryName(code)} <span aria-hidden>×</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <label className="mt-4 flex items-center gap-2.5 text-base text-soft">
+            <input
+              type="checkbox"
+              checked={canWorkUS}
+              onChange={(e) => setCanWorkUS(e.target.checked)}
+              className="h-5 w-5 accent-[var(--brand)]"
+            />
+            I can take a US-only role
+          </label>
+          <label className="mt-2 flex items-center gap-2.5 text-base text-soft">
             <input
               type="checkbox"
               checked={willRelocate}

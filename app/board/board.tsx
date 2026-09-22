@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ProfileForm from "@/components/profile-form";
 import { ScopeTag, money } from "@/components/bits";
+import { COUNTRY_OPTIONS } from "@/lib/countries";
 import { addFromBoard, trackedOrigins } from "@/lib/my-jobs";
 import {
   clearProfile,
@@ -194,8 +195,14 @@ export default function Board() {
           <option value="all">Anywhere</option>
           <option value="worldwide">Remote worldwide</option>
           <option value="eu">Remote in Europe</option>
-          <option value="pl">Poland</option>
-          <option value="us">US only</option>
+          <option value="unknown">Location not stated</option>
+          <optgroup label="Country">
+            {COUNTRY_OPTIONS.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.name}
+              </option>
+            ))}
+          </optgroup>
         </select>
         <select value={source} onChange={(e) => setSource(e.target.value)} className={control} aria-label="Board">
           <option value="all">All boards</option>

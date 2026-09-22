@@ -1,3 +1,4 @@
+import { EU_CODES, countryName, detectCountry } from "./countries";
 import { getProfile, resolveProfile, type Profile } from "./profile";
 import type { IncomingJob, Scope } from "./types";
 
@@ -48,29 +49,38 @@ export function scoreJob(
   const reasons: string[] = [];
 
   // --- geography -----------------------------------------------------------
-  const scope: Scope = job.remote_scope ?? "unknown";
+  const scope: string = job.remote_scope ?? "unknown";
   const { regions, canWorkUS, willRelocate } = PROFILE.reach;
   const wantsWorldwide = regions.includes("worldwide");
+  const wantsEurope = regions.includes("eu") || regions.some((r) => EU_CODES.has(r));
 
-  if (scope === "us") {
-    // A US-only role is either the best case or a dead end; nothing in between.
-    score += canWorkUS ? 20 : -35;
-    reasons.push(canWorkUS ? "US-based, which works for you" : "US-only — likely a dead end");
-  } else if (scope === "worldwide") {
+  if (scope === "worldwide") {
     score += 22;
     reasons.push("Remote worldwide");
-  } else if (regions.includes(scope)) {
-    score += 20;
-    reasons.push(`Remote in ${scope.toUpperCase()}, where you can work`);
+  } else if (scope === "us") {
+    // Either the best case or a dead end; nothing in between.
+    score += canWorkUS ? 20 : -35;
+    reasons.push(canWorkUS ? "United States, which works for you" : "US-only — likely a dead end");
+  } else if (scope === "eu") {
+    score += wantsEurope ? 20 : wantsWorldwide ? 4 : -8;
+    if (wantsEurope) reasons.push("Remote across Europe");
   } else if (scope === "other") {
     score += willRelocate ? 4 : -12;
     if (!willRelocate) reasons.push("On-site, outside where you work");
   } else if (scope === "unknown") {
     // Not stated is not the same as ruled out.
     score += wantsWorldwide ? 6 : 2;
+  } else if (regions.includes(scope)) {
+    score += 20;
+    reasons.push(`In ${countryName(scope)}, where you can work`);
+  } else if (wantsEurope && EU_CODES.has(scope)) {
+    score += 16;
+    reasons.push(`In ${countryName(scope)}, inside Europe`);
+  } else if (wantsWorldwide) {
+    score += 4;
   } else {
-    score += wantsWorldwide ? 8 : -6;
-    if (!wantsWorldwide) reasons.push(`Remote in ${scope.toUpperCase()}, outside your regions`);
+    score -= 10;
+    reasons.push(`In ${countryName(scope)}, outside where you can work`);
   }
 
   // --- stack ---------------------------------------------------------------
@@ -160,30 +170,25 @@ export function scoreJob(
  * Order matters: the most specific signal wins.
  */
 /**
- * EU/EEA ISO codes. Matched case-sensitively against the original string and
- * only on short ones, because lowercasing would turn IT, NO, IS, BE and AT
- * into ordinary English words.
+ * Reads a listing's reach from free text. Returns "worldwide", "us", a two
+ * letter country code, "eu" when it is Europe-wide, or "unknown".
  */
-const EU_CODES =
-  /\b(AT|BE|BG|HR|CY|CZ|DK|EE|FI|FR|DE|GR|HU|IE|IT|LV|LT|LU|MT|NL|PL|PT|RO|SK|SI|ES|SE|NO|IS|LI|CH|UK|GB)\b/;
-
 export function inferScope(text: string | null | undefined): Scope {
   if (!text) return "unknown";
   const t = text.toLowerCase();
-  // Only trust bare country codes in short strings: "Remote (DE; GB; SE)",
-  // "Warsaw, PL", not in the middle of a job description.
-  const codes = text.length <= 70 ? EU_CODES.test(text) : false;
 
-  if (/\b(poland|polska|warsaw|warszawa|krak|wroc|gdan|poznan|katowice)/.test(t)) return "pl";
-  if (text.length <= 70 && /\bPL\b/.test(text)) return "pl";
   if (/\b(worldwide|anywhere|global|any location|fully remote)\b/.test(t)) return "worldwide";
-  if (/\b(emea|europe|european|eu only|eu-based|\beu\b|cet|cest)\b/.test(t) || codes) return "eu";
   if (
-    /(remote \(us\)|us only|usa only|united states only|us-based|must be located in the us|americas time zone|\bus\b\s*only)/.test(
+    /(remote \(us\)|us only|usa only|united states only|us-based|must be located in the us|americas time zone)/.test(
       t,
     )
   )
     return "us";
+  if (/\b(emea|europe|european|eu only|eu-based|\beu\b)\b/.test(t)) return "eu";
+
+  const country = detectCountry(text);
+  if (country) return country as Scope;
+
   if (/\b(remote)\b/.test(t)) return "worldwide";
   return "unknown";
 }
