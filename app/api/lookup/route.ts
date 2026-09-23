@@ -6,7 +6,8 @@ export const maxDuration = 30;
 
 /**
  * Turns a pasted job link into form fields: Greenhouse, Lever and Ashby through their
- * public posting APIs, Traffit from its markup, anything else via schema.org JobPosting.
+ * public posting APIs, Traffit from its markup, anything else via schema.org JobPosting,
+ * an embedded link to one of those ATSs, or the page title as a last resort.
  */
 
 type Found = {
@@ -32,6 +33,13 @@ const get = (url: string, json = true) =>
     signal: AbortSignal.timeout(15_000),
     cache: "no-store",
   });
+
+/** "acme-corp" as it appears in an ATS link, shown as "Acme Corp". */
+const slugToName = (slug: string) =>
+  decodeURIComponent(slug)
+    .split(/[-_]+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
 
 /** The caller chooses the URL, so refuse anything on a local or private network. */
 function safe(raw: string): URL | null {
@@ -130,8 +138,8 @@ async function lever(u: URL): Promise<Found | null> {
   if (!res.ok) return null;
   const j = (await res.json()) as Record<string, any>;
   return {
-    company: m[1],
-    title: j.text,
+    company: slugToName(m[1]),
+    title: j.text?.trim(),
     location: j.categories?.location ?? null,
     url: j.hostedUrl ?? u.toString(),
     description: stripHtml(j.descriptionPlain ?? j.description, 1500),
@@ -149,8 +157,8 @@ async function ashby(u: URL): Promise<Found | null> {
   const job = (board.jobs ?? []).find((j) => j.jobUrl?.includes(m[2]) || j.id === m[2]);
   if (!job) return null;
   return {
-    company: m[1],
-    title: job.title,
+    company: slugToName(m[1]),
+    title: job.title?.trim(),
     location: job.location ?? null,
     url: job.jobUrl ?? u.toString(),
     description: stripHtml(job.descriptionHtml ?? job.descriptionPlain, 1500),
@@ -159,31 +167,67 @@ async function ashby(u: URL): Promise<Found | null> {
   };
 }
 
+const pick = (html: string, re: RegExp) => html.match(re)?.[1]?.trim() || null;
+const pageTitle = (html: string) =>
+  pick(html, /property=["']og:title["'][^>]*content=["']([^"']+)/i) ??
+  pick(html, /<h1[^>]*>([\s\S]*?)<\/h1>/i)?.replace(/<[^>]+>/g, "").trim() ??
+  pick(html, /<title>([^<]+)<\/title>/i);
+
 /** Traffit has no API or JSON-LD, but renders og:title, and the subdomain is the employer. */
 async function traffit(u: URL): Promise<Found | null> {
   const res = await get(u.toString(), false);
   if (!res.ok) return null;
   const html = await res.text();
 
-  const pick = (re: RegExp) => html.match(re)?.[1]?.trim() || null;
-  const title =
-    pick(/property=["']og:title["'][^>]*content=["']([^"']+)/i) ??
-    pick(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.replace(/<[^>]+>/g, "").trim() ??
-    pick(/<title>([^<]+)<\/title>/i);
+  const title = pageTitle(html);
   if (!title) return null;
 
-  const company = u.hostname.split(".")[0];
   const remote = /remote_status\.remote/.test(html);
   const published = html.match(/published_on[^0-9]*(\d{2})\/(\d{2})\/(\d{4})/);
 
   return {
-    company: company.charAt(0).toUpperCase() + company.slice(1),
+    company: slugToName(u.hostname.split(".")[0]),
     title,
     location: remote ? "Remote" : null,
     url: u.toString(),
     description: stripHtml(html, 1500),
     posted_at: published ? `${published[3]}-${published[2]}-${published[1]}` : null,
     via: "Traffit",
+  };
+}
+
+const ATS = [
+  { host: "greenhouse.io", fetch: greenhouse, link: /https?:\/\/(?:job-boards|boards)\.greenhouse\.io\/[^/"'\s]+\/jobs\/\d+/ },
+  { host: "lever.co", fetch: lever, link: /https?:\/\/jobs\.lever\.co\/[^/"'\s]+\/[0-9a-f-]{36}/ },
+  { host: "ashbyhq.com", fetch: ashby, link: /https?:\/\/jobs\.ashbyhq\.com\/[^/"'\s]+\/[0-9a-f-]{36}/ },
+  { host: "traffit.com", fetch: traffit },
+];
+
+/** A company careers page usually links to the ATS posting behind it. */
+async function fromEmbeddedAts(html: string): Promise<Found | null> {
+  for (const ats of ATS) {
+    const link = ats.link && html.match(ats.link)?.[0];
+    const u = link && safe(link.replace(/\\$/, ""));
+    if (u) return ats.fetch(u);
+  }
+  return null;
+}
+
+/** "Software engineer | Bending Spoons" from the page title, when nothing better exists. */
+function fromTitle(html: string, u: URL): Found | null {
+  // <title> first: og:title is often the generic "Jobs at Acme".
+  const raw = pick(html, /<title>([^<]+)<\/title>/i) ?? pageTitle(html);
+  if (!raw) return null;
+  const parts = raw.split(/\s+[|·–—-]\s+|\s+at\s+/);
+  if (parts.length < 2) return null;
+  const site = pick(html, /property=["']og:site_name["'][^>]*content=["']([^"']+)/i);
+  return {
+    title: parts[0].trim(),
+    company: (site ?? parts[parts.length - 1]).replace(/\s*(careers|jobs)\s*$/i, "").trim(),
+    location: null,
+    url: u.toString(),
+    description: pick(html, /name=["']description["'][^>]*content=["']([^"']+)/i),
+    via: "the page title",
   };
 }
 
@@ -194,16 +238,12 @@ export async function POST(request: Request) {
 
   const host = u.hostname.toLowerCase();
   try {
-    let found: Found | null = null;
-
-    if (host.endsWith("greenhouse.io")) found = await greenhouse(u);
-    else if (host.endsWith("lever.co")) found = await lever(u);
-    else if (host.endsWith("ashbyhq.com")) found = await ashby(u);
-    else if (host.endsWith("traffit.com")) found = await traffit(u);
+    let found = await ATS.find((a) => host.endsWith(a.host))?.fetch(u);
 
     if (!found) {
       const res = await get(u.toString(), false);
-      if (res.ok) found = fromJsonLd(await res.text(), u.toString());
+      const html = res.ok ? await res.text() : "";
+      found = fromJsonLd(html, u.toString()) ?? (await fromEmbeddedAts(html)) ?? fromTitle(html, u);
     }
 
     if (!found?.title) {

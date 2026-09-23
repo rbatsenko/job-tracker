@@ -9,8 +9,10 @@ new remote ones without scrolling past boards that are half US-only.
 
 ## What it does
 
-**My jobs** (`/`) is your pipeline. Paste a link from Greenhouse, Lever, Ashby or
-any page with JobPosting data and the form fills itself in. Then move the job
+**My jobs** (`/`) is your pipeline. Paste a link to a posting and the form fills
+in the company, role and location. That works for Greenhouse, Lever, Ashby and
+Traffit postings, for company careers pages that embed one of those, and for any
+page with schema.org JobPosting data or a sensible page title. Then move the job
 through the stages (`new → shortlist → drafted → applied → replied → interviewing
 → offer`, plus `rejected` and `archived`), and keep notes and the message you plan
 to send next to it.
@@ -66,14 +68,23 @@ sources. **Copy for Claude** copies your list with short instructions attached.
 
 ## API
 
+The pages talk to a few JSON endpoints, and an assistant can use the same ones.
+That's the point of them: a friend's Claude can search the board or fill in a
+job from a link, and a locally running copy can read and write the list itself.
+
 ```
-GET  /api/jobs      q, scope, source, sort, profile, minScore, limit (25), full=1
-POST /api/jobs      same query, with a custom { profile } in the body
+GET  /api/jobs      search the board: q, scope, source, sort, limit (25), full=1
+                    add profile=engineering|design to get a ranking
+POST /api/jobs      same, with a custom { profile } in the body
 POST /api/lookup    { url } turns a posting link into a prefilled job
-GET  /api/my-jobs   local only
-POST /api/my-jobs   local only, upserts by id
-POST /api/refresh   { sources?, rescope? } pulls from the boards
+POST /api/refresh   { sources?, rescope? } pulls fresh listings from the boards
+GET  /api/my-jobs   your list, only when running locally (see above)
+POST /api/my-jobs   upsert into it by id, only when running locally
 ```
+
+On jobshelf.app `/api/my-jobs` answers `{ mode: "browser-only" }`, because the
+list is in your browser and the server never sees it. `/llms.txt` explains all
+of this to an assistant.
 
 ## Sources
 
