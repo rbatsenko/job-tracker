@@ -232,7 +232,7 @@ export default function Board() {
         />
         <Select
           label="Location"
-          className="w-full"
+          className="w-full sm:w-52"
           value={scope}
           onChange={setScope}
           options={[
@@ -246,7 +246,7 @@ export default function Board() {
         />
         <Select
           label="Board"
-          className="w-full"
+          className="w-full sm:w-48"
           value={source}
           onChange={setSource}
           options={[
@@ -260,7 +260,7 @@ export default function Board() {
         />
         <Select
           label="Sort"
-          className="w-full"
+          className="w-full sm:w-40"
           value={sort}
           onChange={setSort}
           options={[
