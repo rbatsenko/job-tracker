@@ -119,13 +119,27 @@ export function ScopeTag({ scope }: { scope: string }) {
   );
 }
 
-/** How long a job has been waiting, which is the thing that actually stings. */
+const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+
+/**
+ * How long a job has been waiting, which is the thing that actually stings.
+ *
+ * Counts calendar days in the viewer's own timezone, not elapsed 24-hour
+ * periods: something you applied to yesterday evening should say "yesterday"
+ * this morning, not "today". Rounding absorbs the 23- and 25-hour days that
+ * daylight saving produces.
+ */
 export function sinceLabel(iso: string | null | undefined) {
   if (!iso) return null;
-  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
-  if (days <= 0) return "today";
+  const then = new Date(iso);
+  if (Number.isNaN(then.getTime())) return null;
+
+  const days = Math.round((startOfDay(new Date()) - startOfDay(then)) / 86_400_000);
+  if (days < 0) return null;
+  if (days === 0) return "today";
   if (days === 1) return "yesterday";
   if (days < 30) return `${days} days ago`;
-  const months = Math.round(days / 30);
+
+  const months = Math.max(1, Math.round(days / 30.44));
   return `${months} month${months > 1 ? "s" : ""} ago`;
 }
