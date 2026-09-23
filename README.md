@@ -34,15 +34,6 @@ bun install
 bun run dev        # http://localhost:4321
 ```
 
-Locally, My jobs is also mirrored into SQLite (`data/jobs.db`), so scripts and
-agents can read it:
-
-```bash
-curl localhost:4321/api/my-jobs                       # read
-curl -X POST localhost:4321/api/my-jobs \
-  -H 'content-type: application/json' -d @my-jobs.json # upsert an export
-```
-
 Bun is the package manager only. `better-sqlite3` is a native addon that crashes
 under Bun's runtime, so don't run `bun --bun`. The `next` binary runs on Node.
 
@@ -51,26 +42,32 @@ under Bun's runtime, so don't run `bun --bun`. The `next` binary runs on Node.
 | | Where |
 | --- | --- |
 | Board listings | `data/jobs.db` locally; in memory on Vercel, refilled from the boards on a cold start |
-| My jobs | `localStorage` in each browser, plus mirrored to SQLite when run locally |
+| My jobs | `localStorage` in each browser; also mirrored into `data/jobs.db` when run locally |
 | Ranking profile | `localStorage` |
 
 With no accounts, everyone can share one deployment and keep their own list.
 **Export** and **Import** move a list between devices, or between the deployed and
 local copies. The **?** button on My jobs explains the file format.
 
-## Working with an assistant
+## Working with an AI assistant
 
-`/llms.txt` is written for LLMs. It explains that My jobs lives in the browser,
-documents the file format and the board API, and asks assistants to credit
-sources. **Copy for Claude** copies your list with short instructions attached.
+Two ways, and they work with ChatGPT, Claude or whatever you use.
+
+**Copy for AI** on My jobs copies your whole list with short instructions
+attached. Paste it into a chat and ask for a ranking, a draft message, or a
+cleaned-up list. If the assistant hands the list back, save it as a file and
+**Import** it. Jobs are matched by `id`, so edits update rather than duplicate.
+
+**`/llms.txt`** is for assistants that can read the web. It explains that My jobs
+lives in the browser, documents the file format and the API below, and asks them
+to credit the job boards.
 
 > Read https://jobshelf.app/llms.txt and help me with my job search.
 
 ## API
 
-The pages talk to a few JSON endpoints, and an assistant can use the same ones.
-That's the point of them: a friend's Claude can search the board or fill in a
-job from a link, and a locally running copy can read and write the list itself.
+The pages talk to a few JSON endpoints, and an assistant can use the same ones
+to search the board or fill in a job from a link.
 
 ```
 GET  /api/jobs      search the board: q, scope, source, sort, limit (25), full=1
@@ -78,13 +75,19 @@ GET  /api/jobs      search the board: q, scope, source, sort, limit (25), full=1
 POST /api/jobs      same, with a custom { profile } in the body
 POST /api/lookup    { url } turns a posting link into a prefilled job
 POST /api/refresh   { sources?, rescope? } pulls fresh listings from the boards
-GET  /api/my-jobs   your list, only when running locally (see above)
+GET  /api/my-jobs   your list, only when running locally
 POST /api/my-jobs   upsert into it by id, only when running locally
 ```
 
-On jobshelf.app `/api/my-jobs` answers `{ mode: "browser-only" }`, because the
-list is in your browser and the server never sees it. `/llms.txt` explains all
-of this to an assistant.
+On jobshelf.app `/api/my-jobs` answers `{ mode: "browser-only" }`: the list is in
+your browser and the server never sees it. When you run the app locally, the list
+is also mirrored into `data/jobs.db`, and these two endpoints read and write it.
+That's how a local agent or script can work on your list directly:
+
+```bash
+curl localhost:4321/api/my-jobs
+curl -X POST localhost:4321/api/my-jobs -H 'content-type: application/json' -d @my-jobs.json
+```
 
 ## Sources
 

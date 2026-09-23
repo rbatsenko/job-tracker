@@ -81,7 +81,7 @@ export default function MyJobsPage() {
 
   async function copyList() {
     await navigator.clipboard.writeText(copyForAssistant());
-    setMessage({ tone: "ok", text: `Copied ${plural(jobs.length, "job")} with instructions. Paste it into Claude.` });
+    setMessage({ tone: "ok", text: `Copied ${plural(jobs.length, "job")} with instructions. Paste it into ChatGPT, Claude or any assistant.` });
   }
 
   const applied = jobs.filter((j) => j.status === "applied").length;
@@ -99,7 +99,7 @@ export default function MyJobsPage() {
         </div>
 
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-          <button onClick={copyList} className={toolbarButton}>Copy for Claude</button>
+          <button onClick={copyList} className={toolbarButton}>Copy for AI</button>
           <button onClick={() => download("my-jobs.json", exportMyJobs())} className={toolbarButton}>Export</button>
           <button onClick={() => fileInput.current?.click()} className={toolbarButton}>Import</button>
           <input
@@ -144,7 +144,7 @@ export default function MyJobsPage() {
             </div>
           )}
           <p className="text-sm text-faint">
-            Export saves a file, Import merges one back in, and Copy for Claude copies your list with
+            Export saves a file, Import merges one back in, and Copy for AI copies your list with
             instructions for an assistant.
           </p>
         </div>

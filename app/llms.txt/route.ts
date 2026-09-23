@@ -19,7 +19,7 @@ A personal job-application tracker.
 
 It is stored in the person's localStorage ("job-tracker:my-jobs:v1"), not on the
 server, so you cannot read or write it over HTTP. Ask them to press "Copy for
-Claude" (or Export) and paste the result to you.
+AI" (or Export) and paste the result to you.
 ${
   local
     ? `

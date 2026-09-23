@@ -44,9 +44,9 @@ export default function SavingHelp({ onClose }: { onClose: () => void }) {
           </dd>
         </div>
         <div>
-          <dt className="font-semibold">Copy for Claude</dt>
+          <dt className="font-semibold">Copy for AI</dt>
           <dd className="mt-0.5 max-w-prose text-soft">
-            Copies your list with instructions for an assistant. Ask it to rank your jobs or draft a
+            Copies your list with instructions for ChatGPT, Claude or any assistant. Ask it to rank your jobs or draft a
             message; if it hands back an edited list, save it as a file and import it.
           </dd>
         </div>
