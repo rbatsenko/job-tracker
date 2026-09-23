@@ -1,4 +1,4 @@
-import { recordRun, upsertJobs } from "../db";
+import { upsertJobs } from "../db";
 import type { IncomingJob } from "../types";
 import { fetchArbeitnow } from "./arbeitnow";
 import { fetchHimalayas } from "./himalayas";
@@ -25,7 +25,6 @@ export async function refreshSources(only?: string[]): Promise<RefreshResult[]> 
     names.map(async (source) => {
       const jobs = await SOURCES[source]();
       const { inserted } = upsertJobs(jobs);
-      recordRun(source, jobs.length, inserted);
       return { source, found: jobs.length, inserted };
     }),
   );
@@ -33,7 +32,6 @@ export async function refreshSources(only?: string[]): Promise<RefreshResult[]> 
   return settled.map((r, i) => {
     if (r.status === "fulfilled") return r.value;
     const error = r.reason instanceof Error ? r.reason.message : String(r.reason);
-    recordRun(names[i], 0, 0, error);
     return { source: names[i], found: 0, inserted: 0, error };
   });
 }

@@ -1,3 +1,6 @@
+/** The most rows one /api/jobs call returns. */
+export const MAX_LIMIT = 2000;
+
 export const STATUSES = [
   "new",
   "shortlist",
@@ -12,7 +15,7 @@ export const STATUSES = [
 
 export type Status = (typeof STATUSES)[number];
 
-/** "worldwide", "eu", "us", "other" (on-site), "unknown", or a country code like "pl". */
+/** "worldwide", "eu", "us", "unknown", or a country code like "pl". */
 export type Scope = string;
 
 /** What every source normalises a listing into. */

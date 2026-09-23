@@ -91,7 +91,7 @@ export default function AddJobForm({ onSave, onCancel }: { onSave: (job: NewJob)
           </button>
         </div>
         <p className="mt-1.5 text-sm text-faint">
-          {note ?? "Greenhouse, Lever, Ashby and Traffit links fill themselves in. Anything else, type it below."}
+          {note ?? "Most posting links fill themselves in. If this one doesn't, type it below."}
         </p>
       </div>
 

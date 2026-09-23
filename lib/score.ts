@@ -1,5 +1,6 @@
 import { EU_CODES, countryName, detectCountry } from "./countries";
 import { fieldLabel, fieldOf } from "./fields";
+import { eurRate, yearlyEur } from "./money";
 import { getProfile, resolveProfile, type Profile } from "./profile";
 import type { IncomingJob, Scope } from "./types";
 
@@ -9,7 +10,8 @@ const AGENCIES = [
 ];
 
 const SENIORITY = ["senior", "staff", "lead", "principal", "head of"];
-const TO_EUR: Record<string, number> = { EUR: 1, USD: 0.92, GBP: 1.17, PLN: 0.23 };
+/** The most the stack match can add: 20 core + 6 secondary + 8 topics. */
+const MAX_STACK = 34;
 
 const matches = (haystack: string, needles: readonly string[]) =>
   needles.filter((n) => haystack.includes(n));
@@ -24,13 +26,12 @@ function geography(scope: string, { regions, canWorkUS, willRelocate }: Profile[
       ? { points: 20, reason: "United States, which works for you" }
       : { points: -35, reason: "US-only, likely a dead end" };
   if (scope === "eu") return { points: europe ? 20 : worldwide ? 4 : -8, reason: europe ? "Remote across Europe" : null };
-  if (scope === "other")
-    return { points: willRelocate ? 4 : -12, reason: willRelocate ? null : "On-site, outside where you work" };
   // Not stated isn't the same as ruled out.
   if (scope === "unknown") return { points: worldwide ? 6 : 2, reason: null };
   if (regions.includes(scope)) return { points: 20, reason: `In ${countryName(scope)}, where you can work` };
   if (europe && EU_CODES.has(scope)) return { points: 16, reason: `In ${countryName(scope)}, inside Europe` };
   if (worldwide) return { points: 4, reason: null };
+  if (willRelocate) return { points: 2, reason: `In ${countryName(scope)}, if you'd move` };
   return { points: -10, reason: `In ${countryName(scope)}, outside where you can work` };
 }
 
@@ -54,11 +55,11 @@ export function scoreJob(job: IncomingJob, profile?: string | object | null) {
     Math.min(core.length * 5, 20) + Math.min(secondary.length * 2, 6) + Math.min(bonus.length * 3, 8);
 
   // A one-line tagline shouldn't rank below a verbose listing just for being short,
-  // so blend what little we know with a neutral prior.
+  // so a short one gets half of what it matched plus half of an average score.
   if ((job.description ?? "").length > 200) {
     score += stack;
   } else {
-    score += Math.round(stack / 2 + 34 / 4);
+    score += Math.round((stack + MAX_STACK / 2) / 2);
     reasons.push("Short listing, scored mostly on title and tags");
   }
   if (core.length) reasons.push(`Core stack: ${core.slice(0, 4).join(", ")}`);
@@ -82,12 +83,8 @@ export function scoreJob(job: IncomingJob, profile?: string | object | null) {
 
   const { floor, strong, currency } = p.money;
   if (job.salary_max && (floor || strong)) {
-    const perYear =
-      job.salary_period === "month" ? job.salary_max * 12
-      : job.salary_period === "hour" ? job.salary_max * 1800
-      : job.salary_max;
-    const eur = perYear * (TO_EUR[job.currency ?? "USD"] ?? 1);
-    const rate = TO_EUR[currency] ?? 1;
+    const eur = yearlyEur(job.salary_max, job.salary_period, job.currency);
+    const rate = eurRate(currency);
     if (strong && eur >= strong * rate) {
       score += 6;
       reasons.push("Top of band is strong for you");
@@ -111,7 +108,7 @@ export function inferScope(text: string | null | undefined): Scope {
   const t = text.toLowerCase();
 
   if (/\b(worldwide|anywhere|global|any location|fully remote)\b/.test(t)) return "worldwide";
-  if (/(remote \(us\)|us only|usa only|united states only|us-based|must be located in the us|americas time zone)/.test(t))
+  if (/(remote \(us\)|us only|usa only|united states only|us-based|must be located in the us)/.test(t))
     return "us";
   if (/\b(emea|europe|european|eu only|eu-based|eu)\b/.test(t)) return "eu";
 

@@ -88,14 +88,13 @@ const SCOPE_LABEL: Record<string, string> = {
   worldwide: "Remote worldwide",
   eu: "Remote in Europe",
   us: "US only",
-  other: "On-site",
   unknown: "Location not stated",
 };
 
 export const scopeLabel = (scope: string) => SCOPE_LABEL[scope] ?? countryName(scope);
 
 export function ScopeTag({ scope }: { scope: string }) {
-  const outOfReach = scope === "us" || scope === "other";
+  const outOfReach = scope === "us";
   return (
     <span
       className={`inline-flex h-7 items-center rounded-md px-2.5 text-sm ${

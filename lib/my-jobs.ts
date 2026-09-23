@@ -1,3 +1,4 @@
+import { yearlyEur } from "./money";
 import type { Scope, Status } from "./types";
 
 /**
@@ -110,15 +111,9 @@ const STAGE_RANK: Record<Status, number> = {
 };
 
 const WAITING: Status[] = ["applied", "replied", "interviewing"];
-const TO_EUR: Record<string, number> = { EUR: 1, USD: 0.92, GBP: 1.17, PLN: 0.23 };
 
 const daysSince = (iso: string | null) => (iso ? (Date.now() - Date.parse(iso)) / 86_400_000 : -1);
-
-const yearlyEur = (j: MyJob) => {
-  if (!j.salary_max) return -1;
-  const factor = j.salary_period === "month" ? 12 : j.salary_period === "hour" ? 1800 : 1;
-  return j.salary_max * factor * (TO_EUR[j.currency ?? "EUR"] ?? 1);
-};
+const salary = (j: MyJob) => (j.salary_max ? yearlyEur(j.salary_max, j.salary_period, j.currency ?? "EUR") : -1);
 
 export function sortMyJobs(jobs: MyJob[], key: SortKey = "progress"): MyJob[] {
   const list = [...jobs];
@@ -137,7 +132,7 @@ export function sortMyJobs(jobs: MyJob[], key: SortKey = "progress"): MyJob[] {
     case "company":
       return list.sort((a, b) => a.company.localeCompare(b.company));
     case "salary":
-      return list.sort((a, b) => yearlyEur(b) - yearlyEur(a));
+      return list.sort((a, b) => salary(b) - salary(a));
     default:
       return list.sort(
         (a, b) =>
@@ -210,7 +205,11 @@ Statuses: new, shortlist, drafted, applied, replied, interviewing, offer, reject
 ${exportMyJobs()}`;
 }
 
-/** Merges on origin, then id. Returns how many jobs were new. */
+/**
+ * Merges on origin, then id. A matched job only takes the fields the file actually
+ * has, so a partial edit from an assistant can't blank out notes or reset a stage.
+ * Returns how many jobs were new.
+ */
 export function importMyJobs(json: string): number {
   const parsed = JSON.parse(json) as MyJobsFile | MyJob[];
   const incoming = Array.isArray(parsed) ? parsed : parsed.jobs;
@@ -223,18 +222,12 @@ export function importMyJobs(json: string): number {
   let added = 0;
   for (const raw of incoming) {
     if (!raw?.company || !raw?.title) continue;
-    const job: MyJob = {
-      ...BLANK,
-      ...raw,
-      id: raw.id ?? newId(),
-      created_at: raw.created_at ?? now(),
-      updated_at: raw.updated_at ?? now(),
-    };
-    const match = (job.origin && byOrigin.get(originKey(job.origin))) ?? byId.get(job.id);
+    const given = Object.fromEntries(Object.entries(raw).filter(([, v]) => v !== undefined)) as Partial<MyJob>;
+    const match = (raw.origin && byOrigin.get(originKey(raw.origin))) ?? (raw.id ? byId.get(raw.id) : undefined);
     if (match) {
-      Object.assign(match, job, { id: match.id, updated_at: now() });
+      Object.assign(match, given, { id: match.id, created_at: match.created_at, updated_at: now() });
     } else {
-      existing.push(job);
+      existing.push({ ...BLANK, ...given, id: raw.id ?? newId(), created_at: raw.created_at ?? now(), updated_at: now() } as MyJob);
       added++;
     }
   }

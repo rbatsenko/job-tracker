@@ -165,7 +165,7 @@ export default function ProfileForm({
               onChange={(e) => setWillRelocate(e.target.checked)}
               className="h-5 w-5 accent-[var(--brand)]"
             />
-            I would consider on-site or relocating
+            I'd consider moving for the right role
           </label>
         </fieldset>
 

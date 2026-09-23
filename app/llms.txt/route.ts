@@ -51,13 +51,13 @@ every "id". Import merges on id, so edits update entries instead of duplicating 
 
 GET ${base}/api/jobs
   q          search company, title, tags, location
-  scope      reachable (not US-only, not on-site) | worldwide | eu | us | <country code> | all
+  scope      reachable (everything but US-only) | worldwide | eu | us | unknown | <country code> | all
   source     one source, or all
   field      engineering | design | product | data | marketing | sales | support | people | finance | operations | other
   sort       newest | company | score
   profile    a field key from the list above. Without it nothing is scored and fit_score is 0
   minScore   0-100, only with a profile
-  limit      default 25, max 1000
+  limit      default 25, max 2000
   offset     skip that many; the response's query.matched says how many match in total
   full=1     whole descriptions instead of the first 280 characters
 

@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ProfileForm from "@/components/profile-form";
 import Select from "@/components/select";
 import { ScopeTag, money } from "@/components/bits";
 import { COUNTRY_OPTIONS } from "@/lib/countries";
 import { FIELDS, fieldLabel } from "@/lib/fields";
+import { MAX_LIMIT } from "@/lib/types";
 import { addFromBoard, trackedOrigins } from "@/lib/my-jobs";
 import { SOURCE_INFO, sourceName } from "@/lib/sources/info";
 import {
@@ -35,6 +36,8 @@ export default function Board() {
   const [tracked, setTracked] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  // Responses can arrive out of order; only the latest request may set the list.
+  const requestSeq = useRef(0);
 
   const [q, setQ] = useState("");
   const [scope, setScope] = useState("reachable");
@@ -61,6 +64,7 @@ export default function Board() {
   const limit = more.key === filterKey ? more.limit : PAGE;
 
   const load = useCallback(async () => {
+    const seq = ++requestSeq.current;
     const params = new URLSearchParams({ scope, source, field, sort, limit: String(limit) });
     if (q) params.set("q", q);
 
@@ -72,7 +76,8 @@ export default function Board() {
         })
       : await fetch(`/api/jobs?${params}`, { cache: "no-store" });
 
-    setData((await res.json()) as Payload);
+    const payload = (await res.json()) as Payload;
+    if (seq === requestSeq.current) setData(payload);
   }, [q, scope, source, field, sort, profile, limit]);
 
   useEffect(() => {
@@ -344,7 +349,7 @@ export default function Board() {
         )}
       </ul>
 
-      {rows.length < matched && (
+      {rows.length < matched && limit < MAX_LIMIT && (
         <div className="mt-5 flex flex-col items-center gap-2">
           <button
             onClick={() => setMore({ key: filterKey, limit: limit + PAGE })}

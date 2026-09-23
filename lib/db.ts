@@ -3,7 +3,7 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { fieldOf } from "./fields";
 import { inferScope, scoreJob } from "./score";
-import type { IncomingJob, Job } from "./types";
+import { MAX_LIMIT, type IncomingJob, type Job } from "./types";
 
 const DB_PATH = path.join(process.cwd(), "data", "jobs.db");
 
@@ -59,15 +59,6 @@ CREATE TABLE IF NOT EXISTS my_jobs (
   created_at    TEXT NOT NULL,
   updated_at    TEXT NOT NULL
 );
-
-CREATE TABLE IF NOT EXISTS runs (
-  id       INTEGER PRIMARY KEY AUTOINCREMENT,
-  at       TEXT NOT NULL,
-  source   TEXT NOT NULL,
-  found    INTEGER NOT NULL DEFAULT 0,
-  inserted INTEGER NOT NULL DEFAULT 0,
-  error    TEXT
-);
 `;
 
 let instance: Database.Database | null = null;
@@ -119,10 +110,12 @@ export function upsertJobs(incoming: IncomingJob[]) {
       @field, @employment, @salary_min, @salary_max, @currency, @salary_period, @tags, @description, @posted_at,
       @at, @at)
     ON CONFLICT(source, external_id) DO UPDATE SET
-      url = excluded.url, title = excluded.title, location = excluded.location,
-      remote_scope = excluded.remote_scope, field = excluded.field, salary_min = excluded.salary_min,
-      salary_max = excluded.salary_max, currency = excluded.currency, tags = excluded.tags,
-      description = COALESCE(excluded.description, jobs.description), updated_at = excluded.updated_at
+      url = excluded.url, company = excluded.company, company_url = excluded.company_url,
+      title = excluded.title, location = excluded.location, remote_scope = excluded.remote_scope,
+      field = excluded.field, employment = excluded.employment, salary_min = excluded.salary_min,
+      salary_max = excluded.salary_max, currency = excluded.currency, salary_period = excluded.salary_period,
+      tags = excluded.tags, description = COALESCE(excluded.description, jobs.description),
+      posted_at = COALESCE(excluded.posted_at, jobs.posted_at), updated_at = excluded.updated_at
   `);
 
   let inserted = 0;
@@ -175,7 +168,7 @@ export function listJobs(f: JobFilter = {}): { jobs: Job[]; matched: number } {
     params.field = f.field;
   }
   if (f.scope === "reachable") {
-    where.push(`remote_scope NOT IN ('us', 'other')`);
+    where.push(`remote_scope != 'us'`);
   } else if (f.scope && f.scope !== "all") {
     where.push(`remote_scope = @scope`);
     params.scope = f.scope;
@@ -201,7 +194,7 @@ export function listJobs(f: JobFilter = {}): { jobs: Job[]; matched: number } {
     if (f.sort !== "newest" && f.sort !== "company") jobs.sort((a, b) => b.fit_score - a.fit_score);
   }
 
-  const limit = Math.min(Math.max(f.limit ?? 25, 1), 1000);
+  const limit = Math.min(Math.max(f.limit ?? 25, 1), MAX_LIMIT);
   const offset = Math.max(f.offset ?? 0, 0);
   const page = jobs.slice(offset, offset + limit).map((j) => ({
     ...j,
@@ -240,12 +233,6 @@ export function reclassifyAll(d = db()) {
     }
   })();
   return { changed };
-}
-
-export function recordRun(source: string, found: number, inserted: number, error?: string) {
-  db()
-    .prepare(`INSERT INTO runs (at, source, found, inserted, error) VALUES (?, ?, ?, ?, ?)`)
-    .run(now(), source, found, inserted, error ?? null);
 }
 
 /** Re-reads every job's location after inferScope learns something new. "us" came from a board's own flag, so it stays. */
@@ -345,4 +332,11 @@ export function saveMyJobs(jobs: Partial<MyJobRow>[]) {
     }
   })();
   return { saved };
+}
+
+export function deleteMyJobs(ids: string[]) {
+  const del = db().prepare(`DELETE FROM my_jobs WHERE id = ?`);
+  let deleted = 0;
+  for (const id of ids) deleted += del.run(id).changes;
+  return { deleted };
 }

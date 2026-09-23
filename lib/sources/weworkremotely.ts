@@ -27,7 +27,7 @@ export async function fetchWeWorkRemotely(): Promise<IncomingJob[]> {
       const idx = rawTitle.indexOf(":");
       const company = idx > 0 ? decodeEntities(rawTitle.slice(0, idx)) : "Unknown";
       const title = idx > 0 ? decodeEntities(rawTitle.slice(idx + 1)) : rawTitle;
-      const region = tag(item, "region") ?? tag(item, "category") ?? "";
+      const region = tag(item, "region") ?? "";
 
       out.push({
         source: "weworkremotely",
@@ -40,7 +40,6 @@ export async function fetchWeWorkRemotely(): Promise<IncomingJob[]> {
         tags: [],
         description: stripHtml(tag(item, "description")),
         posted_at: tag(item, "pubDate"),
-        employment: "full-time",
       });
     }
   }

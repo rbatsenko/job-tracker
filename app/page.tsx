@@ -60,16 +60,14 @@ export default function MyJobsPage() {
   }, []);
 
   /** Applies a change, re-reads the list, and mirrors it to SQLite when running locally. */
-  function mutate(change: () => void) {
+  function sync(change?: () => void, removed?: string) {
     try {
-      change();
+      change?.();
       const next = listMyJobs();
       setJobs(next);
-      fetch("/api/my-jobs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobs: next }),
-      }).catch(() => {});
+      const json = { headers: { "Content-Type": "application/json" } };
+      fetch("/api/my-jobs", { method: "POST", ...json, body: JSON.stringify({ jobs: next }) }).catch(() => {});
+      if (removed) fetch("/api/my-jobs", { method: "DELETE", ...json, body: JSON.stringify({ ids: [removed] }) }).catch(() => {});
     } catch (e) {
       setMessage({ tone: "error", text: e instanceof Error ? e.message : String(e) });
     }
@@ -78,7 +76,7 @@ export default function MyJobsPage() {
   async function importFile(file: File) {
     try {
       const added = importMyJobs(await file.text());
-      mutate(() => {});
+      sync();
       setMessage({ tone: "ok", text: added ? `Added ${plural(added, "job")}.` : "Nothing new. Existing jobs were updated." });
     } catch {
       setMessage({ tone: "error", text: "That file couldn't be read. It should be a my-jobs.json exported from here." });
@@ -86,8 +84,12 @@ export default function MyJobsPage() {
   }
 
   async function copyList() {
-    await navigator.clipboard.writeText(copyForAssistant());
-    setMessage({ tone: "ok", text: `Copied ${plural(jobs.length, "job")} with instructions. Paste it into ChatGPT, Claude or any assistant.` });
+    try {
+      await navigator.clipboard.writeText(copyForAssistant());
+      setMessage({ tone: "ok", text: `Copied ${plural(jobs.length, "job")} with instructions. Paste it into ChatGPT, Claude or any assistant.` });
+    } catch {
+      setMessage({ tone: "error", text: "The browser blocked the clipboard. Use Export instead." });
+    }
   }
 
   const needle = q.trim().toLowerCase();
@@ -116,8 +118,12 @@ export default function MyJobsPage() {
         </div>
 
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-          <button onClick={copyList} className={toolbarButton}>Copy for AI</button>
-          <button onClick={() => download("my-jobs.json", exportMyJobs())} className={toolbarButton}>Export</button>
+          {jobs.length > 0 && (
+            <>
+              <button onClick={copyList} className={toolbarButton}>Copy for AI</button>
+              <button onClick={() => download("my-jobs.json", exportMyJobs())} className={toolbarButton}>Export</button>
+            </>
+          )}
           <button onClick={() => fileInput.current?.click()} className={toolbarButton}>Import</button>
           <input
             ref={fileInput}
@@ -203,7 +209,7 @@ export default function MyJobsPage() {
         <AddJobForm
           onCancel={() => setAdding(false)}
           onSave={(job) =>
-            mutate(() => {
+            sync(() => {
               addMyJob(job);
               setAdding(false);
             })
@@ -257,8 +263,8 @@ export default function MyJobsPage() {
               {openId === job.id && (
                 <JobEditor
                   job={job}
-                  onChange={(patch) => mutate(() => updateMyJob(job.id, patch))}
-                  onDelete={() => mutate(() => removeMyJob(job.id))}
+                  onChange={(patch) => sync(() => updateMyJob(job.id, patch))}
+                  onDelete={() => sync(() => removeMyJob(job.id), job.id)}
                   onClose={() => setOpenId(null)}
                 />
               )}

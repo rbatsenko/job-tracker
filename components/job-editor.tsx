@@ -56,7 +56,7 @@ export default function JobEditor({ job, onChange, onDelete, onClose }: Props) {
             <textarea rows={9} className={textarea} placeholder="Write what you'll send." {...bind("draft")} />
             {values.draft && (
               <button
-                onClick={() => navigator.clipboard.writeText(values.draft ?? "")}
+                onClick={() => navigator.clipboard.writeText(values.draft ?? "").catch(() => {})}
                 className="mt-2 h-9 rounded-md border border-line px-3 text-sm text-soft hover:bg-raised"
               >
                 Copy message

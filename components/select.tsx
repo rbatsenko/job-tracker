@@ -55,7 +55,7 @@ export default function Select({
 
   const withSearch = searchable ?? options.length > 12;
 
-  const shown = useMemo(() => {
+  const flat = useMemo(() => {
     if (!query.trim()) return options;
     const q = query.toLowerCase();
     return options.filter(
@@ -67,15 +67,13 @@ export default function Select({
 
   const grouped = useMemo(() => {
     const out: { group?: string; items: Option[] }[] = [];
-    for (const o of shown) {
+    for (const o of flat) {
       const last = out[out.length - 1];
       if (last && last.group === o.group) last.items.push(o);
       else out.push({ group: o.group, items: [o] });
     }
     return out;
-  }, [shown]);
-
-  const flat = shown;
+  }, [flat]);
 
   useEffect(() => {
     if (!open) return;

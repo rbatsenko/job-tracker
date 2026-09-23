@@ -31,8 +31,8 @@ export async function fetchArbeitnow(): Promise<IncomingJob[]> {
         company: r.company_name,
         title: r.title,
         location: r.location || "Europe",
-        // A European board, so a remote listing without a location is remote in Europe.
-        remote_scope: inferScope(`${r.location ?? ""} europe remote`),
+        // A European board, so a remote listing that says nothing more is remote in Europe.
+        remote_scope: r.location && inferScope(r.location) !== "unknown" ? inferScope(r.location) : "eu",
         tags: [...(r.tags ?? []), ...(r.job_types ?? [])],
         description: stripHtml(r.description),
         posted_at: r.created_at ? new Date(r.created_at * 1000).toISOString() : null,

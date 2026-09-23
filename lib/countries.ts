@@ -78,13 +78,15 @@ export const COUNTRY_OPTIONS = [...COUNTRIES].sort((a, b) => a.name.localeCompar
  * Finds a country by name or city. Bare codes only count uppercase and in short
  * strings, otherwise IT, NO, IS, BE and AT match ordinary English words.
  */
+const word = (s: string) => new RegExp(`\\b${s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`);
+
 export function detectCountry(text: string): string | null {
   const lower = text.toLowerCase();
 
   for (const c of COUNTRIES) {
-    if (new RegExp(`\\b${c.name.toLowerCase()}\\b`).test(lower)) return c.code;
+    if (word(c.name.toLowerCase()).test(lower)) return c.code;
     for (const h of c.hints ?? []) {
-      if (new RegExp(`\\b${h}\\b`).test(lower)) return c.code;
+      if (word(h).test(lower)) return c.code;
     }
   }
   if (text.length <= 70) {

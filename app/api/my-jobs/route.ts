@@ -1,4 +1,4 @@
-import { isPersistent, listMyJobs, saveMyJobs, type MyJobRow } from "@/lib/db";
+import { deleteMyJobs, isPersistent, listMyJobs, saveMyJobs, type MyJobRow } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,4 +32,12 @@ export async function POST(request: Request) {
   })) as Partial<MyJobRow>[];
 
   return Response.json({ mode: "sqlite", ...saveMyJobs(rows) });
+}
+
+export async function DELETE(request: Request) {
+  if (!isPersistent()) return browserOnly();
+  const body = (await request.json().catch(() => ({}))) as { ids?: unknown };
+  const ids = Array.isArray(body.ids) ? body.ids.filter((x): x is string => typeof x === "string") : [];
+  if (!ids.length) return Response.json({ error: "Send { ids: [...] }" }, { status: 400 });
+  return Response.json({ mode: "sqlite", ...deleteMyJobs(ids) });
 }

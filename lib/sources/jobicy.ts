@@ -45,7 +45,7 @@ export async function fetchJobicy(): Promise<IncomingJob[]> {
       url: r.url,
       company: r.companyName,
       title: r.jobTitle,
-      location: r.jobGeo || "Anywhere",
+      location: r.jobGeo || null,
       remote_scope: inferScope(r.jobGeo),
       tags: [...(r.jobIndustry ?? []), ...(r.jobType ?? []), r.jobLevel ?? ""].filter(Boolean),
       description: stripHtml(r.jobDescription ?? r.jobExcerpt),

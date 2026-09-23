@@ -14,12 +14,18 @@ export default function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>("system");
 
   useEffect(() => {
-    const stored = (localStorage.getItem(KEY) as Theme) ?? "system";
-    setTheme(stored);
+    const stored = (): Theme => {
+      try {
+        return (localStorage.getItem(KEY) as Theme) ?? "system";
+      } catch {
+        return "system";
+      }
+    };
+    setTheme(stored());
 
     const mq = matchMedia("(prefers-color-scheme: dark)");
     const onChange = () => {
-      if ((localStorage.getItem(KEY) as Theme) === "system") apply("system");
+      if (stored() === "system") apply("system");
     };
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);

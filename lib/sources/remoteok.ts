@@ -35,6 +35,5 @@ export async function fetchRemoteOK(): Promise<IncomingJob[]> {
       salary_max: r.salary_max || null,
       currency: r.salary_max ? "USD" : null,
       salary_period: r.salary_max ? "year" : null,
-      employment: "full-time",
-    }))
+    }));
 }
