@@ -3,7 +3,7 @@
 A small job-search tracker: keep the roles you're chasing in one place, and find
 new remote ones without scrolling past boards that are half US-only.
 
-**Live:** https://jobshelf.vercel.app. No sign-up. Your list stays in your browser.
+**Live:** https://jobshelf.app. No sign-up. Your list stays in your browser.
 
 ![Next.js 16](https://img.shields.io/badge/Next.js-16-black) ![SQLite](https://img.shields.io/badge/SQLite-better--sqlite3-003B57) ![Tailwind v4](https://img.shields.io/badge/Tailwind-v4-38BDF8)
 
@@ -62,7 +62,7 @@ local copies. The **?** button on My jobs explains the file format.
 documents the file format and the board API, and asks assistants to credit
 sources. **Copy for Claude** copies your list with short instructions attached.
 
-> Read https://jobshelf.vercel.app/llms.txt and help me with my job search.
+> Read https://jobshelf.app/llms.txt and help me with my job search.
 
 ## API
 
