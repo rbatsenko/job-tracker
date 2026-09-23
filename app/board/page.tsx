@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Find remote jobs",
   description:
-    "Remote engineering and design jobs from Remote OK, Remotive, Himalayas, Jobicy, Arbeitnow and We Work Remotely, with US-only roles filtered out.",
+    "Remote jobs from Remote OK, Remotive, Himalayas, Jobicy, Arbeitnow and We Work Remotely, in one list, with US-only roles filtered out.",
   alternates: { canonical: "/board" },
   robots: { index: false, follow: true },
 };

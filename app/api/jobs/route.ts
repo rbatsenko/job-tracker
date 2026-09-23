@@ -20,6 +20,7 @@ function readFilter(sp: URLSearchParams): JobFilter {
     q: sp.get("q") ?? undefined,
     source: sp.get("source") ?? undefined,
     scope: sp.get("scope") ?? undefined,
+    field: sp.get("field") ?? undefined,
     sort: (sp.get("sort") as JobFilter["sort"]) ?? undefined,
     profile: sp.get("profile") ?? undefined,
     minScore: num("minScore"),

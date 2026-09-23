@@ -1,6 +1,6 @@
 import { inferScope } from "../score";
 import type { IncomingJob } from "../types";
-import { getJSON, isRelevant, stripHtml } from "./util";
+import { getJSON, stripHtml } from "./util";
 
 type Row = {
   slug: string;
@@ -40,5 +40,5 @@ export async function fetchArbeitnow(): Promise<IncomingJob[]> {
       });
     }
   }
-  return out.filter(isRelevant);
+  return out;
 }

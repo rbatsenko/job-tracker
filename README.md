@@ -17,15 +17,18 @@ through the stages (`new → shortlist → drafted → applied → replied → i
 → offer`, plus `rejected` and `archived`), and keep notes and the message you plan
 to send next to it.
 
-**Find jobs** (`/board`) collects remote listings from six public job boards.
-You can search and filter them, and **Add to my jobs** saves a copy of any listing.
+**Find jobs** (`/board`) collects remote listings from six public job boards,
+in any field: engineering, design, product, data, marketing, sales, support,
+people, finance and operations. Each listing is sorted into a field by its title
+(`lib/fields.ts`), so you can filter to yours. **Add to my jobs** saves a copy of
+any listing.
 
 **Ranking is off by default.** A score that fits someone else's career looks
-precise and is wrong for you. Pick **Engineering** or **Design** for a one-click
+precise and is wrong for you. Pick your field under **Rank for** for a one-click
 ranking, or **Fine-tune** it: your skills, the countries you can work from, and
 your salary floor. The profile stays in your browser and goes along with each
-request; the server keeps nothing. Scoring lives in `lib/score.ts`, and where you
-can work counts more than anything else.
+request; the server keeps nothing. Scoring lives in `lib/score.ts`: where you can
+work counts most, then whether the title is in your field, then your skills.
 
 ## Run it
 
@@ -70,8 +73,8 @@ The pages talk to a few JSON endpoints, and an assistant can use the same ones
 to search the board or fill in a job from a link.
 
 ```
-GET  /api/jobs      search the board: q, scope, source, sort, limit (25), offset, full=1
-                    add profile=engineering|design to get a ranking
+GET  /api/jobs      search the board: q, scope, source, field, sort, limit (25), offset, full=1
+                    add profile=<field> to get a ranking
 POST /api/jobs      same, with a custom { profile } in the body
 POST /api/lookup    { url } turns a posting link into a prefilled job
 POST /api/refresh   { sources?, rescope? } pulls fresh listings from the boards
@@ -125,6 +128,7 @@ start is cheap.
 app/            pages, API routes, llms.txt
 components/     UI: add form, editor, custom select, theme toggle
 lib/db.ts       SQLite schema and queries
+lib/fields.ts   the fields: title words, skills, presets
 lib/score.ts    ranking and location detection
 lib/my-jobs.ts  the browser-side list: add, edit, sort, import/export
 lib/sources/    one adapter per board

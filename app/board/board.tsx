@@ -5,6 +5,7 @@ import ProfileForm from "@/components/profile-form";
 import Select from "@/components/select";
 import { ScopeTag, money } from "@/components/bits";
 import { COUNTRY_OPTIONS } from "@/lib/countries";
+import { FIELDS, fieldLabel } from "@/lib/fields";
 import { addFromBoard, trackedOrigins } from "@/lib/my-jobs";
 import { SOURCE_INFO, sourceName } from "@/lib/sources/info";
 import {
@@ -13,6 +14,7 @@ import {
   readProfile,
   saveProfile,
   toScoringProfile,
+  withField,
   type ViewerProfile,
 } from "@/lib/viewer-profile";
 import type { Job } from "@/lib/types";
@@ -22,7 +24,7 @@ const searchInput =
 
 type Payload = {
   jobs: Job[];
-  facets: { sources: { source: string; n: number }[]; total: number };
+  facets: { sources: { source: string; n: number }[]; fields: { field: string; n: number }[]; total: number };
   query: { scored: boolean; matched: number };
 };
 
@@ -37,6 +39,7 @@ export default function Board() {
   const [q, setQ] = useState("");
   const [scope, setScope] = useState("reachable");
   const [source, setSource] = useState("all");
+  const [field, setField] = useState("all");
   const [sort, setSort] = useState("newest");
   // "Show more" only applies to the filters it was pressed under; any change starts from the first page.
   const [more, setMore] = useState({ key: "", limit: PAGE });
@@ -54,11 +57,11 @@ export default function Board() {
     setReady(true);
   }, []);
 
-  const filterKey = JSON.stringify([q, scope, source, sort, profile]);
+  const filterKey = JSON.stringify([q, scope, source, field, sort, profile]);
   const limit = more.key === filterKey ? more.limit : PAGE;
 
   const load = useCallback(async () => {
-    const params = new URLSearchParams({ scope, source, sort, limit: String(limit) });
+    const params = new URLSearchParams({ scope, source, field, sort, limit: String(limit) });
     if (q) params.set("q", q);
 
     const res = profile
@@ -70,7 +73,7 @@ export default function Board() {
       : await fetch(`/api/jobs?${params}`, { cache: "no-store" });
 
     setData((await res.json()) as Payload);
-  }, [q, scope, source, sort, profile, limit]);
+  }, [q, scope, source, field, sort, profile, limit]);
 
   useEffect(() => {
     if (!ready) return;
@@ -168,45 +171,29 @@ export default function Board() {
         <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
           <span className="text-sm text-faint">Rank for</span>
 
-          <div role="radiogroup" aria-label="Rank jobs for" className="flex gap-0.5 rounded-field border border-line bg-sunken p-1">
-            <button
-              role="radio"
-              aria-checked={!profile}
-              onClick={() => {
+          <Select
+            label="Rank jobs for"
+            className="w-full sm:w-52"
+            value={profile?.basedOn ?? "none"}
+            onChange={(k) => {
+              if (k === "none") {
                 clearProfile();
                 setProfile(null);
                 setSort("newest");
-              }}
-              className={`h-9 rounded-md px-3.5 text-[0.9375rem] font-medium transition ${
-                !profile ? "bg-raised text-text shadow-sm" : "text-faint hover:text-soft"
-              }`}
-            >
-              Nothing
-            </button>
-            {(["engineering", "design"] as const).map((k) => (
-              <button
-                key={k}
-                role="radio"
-                aria-checked={profile?.basedOn === k}
-                onClick={() => {
-                  const next: ViewerProfile = {
-                    ...(profile ?? BLANK_PROFILE),
-                    basedOn: k,
-                    label: k === "design" ? "Design" : "Engineering",
-                    coreStack: profile?.basedOn === k ? (profile?.coreStack ?? []) : [],
-                  };
-                  saveProfile(next);
-                  setProfile(next);
-                  setSort("score");
-                }}
-                className={`h-9 rounded-md px-3.5 text-[0.9375rem] font-medium transition ${
-                  profile?.basedOn === k ? "bg-raised text-text shadow-sm" : "text-faint hover:text-soft"
-                }`}
-              >
-                {k === "design" ? "Design" : "Engineering"}
-              </button>
-            ))}
-          </div>
+                return;
+              }
+              const next = withField(profile ?? BLANK_PROFILE, k);
+              saveProfile(next);
+              setProfile(next);
+              setSort("score");
+              // Ranking within a field is what people want; they can widen the filter after.
+              if (k !== "other") setField(k);
+            }}
+            options={[
+              { value: "none", label: "Nothing" },
+              ...FIELDS.map((f) => ({ value: f.key, label: f.label })),
+            ]}
+          />
 
           <button
             onClick={() => setEditing(true)}
@@ -246,6 +233,21 @@ export default function Board() {
             { value: "eu", label: "Remote in Europe" },
             { value: "unknown", label: "Location not stated" },
             ...COUNTRY_OPTIONS.map((c) => ({ value: c.code, label: c.name, group: "Country" })),
+          ]}
+        />
+        <Select
+          label="Field"
+          className="w-full sm:w-48"
+          value={field}
+          onChange={setField}
+          options={[
+            { value: "all", label: "All fields" },
+            ...FIELDS.filter((f) => f.key !== "other").map((f) => ({
+              value: f.key,
+              label: f.label,
+              hint: String(data?.facets.fields.find((x) => x.field === f.key)?.n ?? 0),
+            })),
+            { value: "other", label: "Unclear from the title", hint: String(data?.facets.fields.find((x) => x.field === "other")?.n ?? 0) },
           ]}
         />
         <Select
@@ -314,6 +316,7 @@ export default function Board() {
                 </span>
                 <span className="mt-1.5 flex flex-wrap items-center gap-2.5 text-sm text-faint">
                   <ScopeTag scope={j.remote_scope} />
+                  {j.field !== "other" && <span className="rounded-md bg-sunken px-2 py-0.5">{fieldLabel(j.field)}</span>}
                   {money(j) && <span className="text-soft">{money(j)}</span>}
                   <span className="truncate">{j.location}</span>
                   <span>via {sourceName(j.source)}</span>

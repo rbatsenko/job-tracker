@@ -1,4 +1,3 @@
-import { ALL_RELEVANCE, PROFILES } from "../profile";
 import type { IncomingJob } from "../types";
 
 const UA =
@@ -49,17 +48,6 @@ export function stripHtml(html: string | null | undefined, max = 4000): string |
     .replace(/\n{3,}/g, "\n\n")
     .trim()
     .slice(0, max);
-}
-
-const RELEVANT = [...ALL_RELEVANCE, ...Object.values(PROFILES).flatMap((p) => p.coreStack)];
-const EXCLUDED = ["junior", "intern", "graduate", "apprentice", "recruiter", "account executive", "sales development"];
-
-/** Keeps the catalogue to roles some profile could want. Taste is applied later, per viewer. */
-export function isRelevant(job: IncomingJob): boolean {
-  const title = job.title.toLowerCase();
-  if (EXCLUDED.some((w) => title.includes(w))) return false;
-  const text = [job.title, (job.tags ?? []).join(" "), job.description].join(" ").toLowerCase();
-  return RELEVANT.some((k) => text.includes(k));
 }
 
 /** "$90k - $105k" and similar, best effort. */

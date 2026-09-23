@@ -1,6 +1,6 @@
 import { inferScope } from "../score";
 import type { IncomingJob, Scope } from "../types";
-import { getJSON, isRelevant, stripHtml } from "./util";
+import { getJSON, stripHtml } from "./util";
 
 type Row = {
   title: string;
@@ -56,5 +56,5 @@ export async function fetchHimalayas(): Promise<IncomingJob[]> {
     if (!data.nextCursor) break;
     cursor = data.nextCursor;
   }
-  return out.filter(isRelevant);
+  return out;
 }

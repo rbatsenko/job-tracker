@@ -4,6 +4,7 @@ import { useState } from "react";
 import Select from "@/components/select";
 import { input as field } from "@/components/styles";
 import { COUNTRY_OPTIONS, countryName } from "@/lib/countries";
+import { FIELDS, fieldLabel, getField } from "@/lib/fields";
 import {
   BLANK_PROFILE,
   splitList,
@@ -49,7 +50,7 @@ export default function ProfileForm({
         e.preventDefault();
         onSave({
           basedOn,
-          label: basedOn === "design" ? "Design" : "Engineering",
+          label: fieldLabel(basedOn),
           coreStack: splitList(stack),
           reach: { regions: regions.length ? regions : ["worldwide"], canWorkUS, willRelocate },
           money: { floor: Number(floor) || 0, currency },
@@ -66,23 +67,19 @@ export default function ProfileForm({
       <div className="mt-6 space-y-6">
         <fieldset>
           <legend className={label}>What do you do</legend>
-          <div className="flex gap-2">
-            {(["engineering", "design"] as const).map((k) => (
-              <button
-                key={k}
-                type="button"
-                onClick={() => setBasedOn(k)}
-                aria-pressed={basedOn === k}
-                className={`h-11 rounded-field px-4 text-base font-medium transition ${
-                  basedOn === k
-                    ? "bg-brand text-brand-text"
-                    : "border border-line text-soft hover:bg-sunken"
-                }`}
-              >
-                {k === "design" ? "Design" : "Engineering"}
-              </button>
-            ))}
-          </div>
+          <Select
+            label="Field"
+            inset
+            className="w-full sm:w-72"
+            value={basedOn}
+            onChange={setBasedOn}
+            options={FIELDS.map((f) => ({ value: f.key, label: f.label }))}
+          />
+          {basedOn === "other" && (
+            <p className="mt-1.5 text-sm text-faint">
+              Listings are ranked on the skills you type below and where you can work, nothing else.
+            </p>
+          )}
         </fieldset>
 
         <div>
@@ -94,14 +91,10 @@ export default function ProfileForm({
             className={field}
             value={stack}
             onChange={(e) => setStack(e.target.value)}
-            placeholder={
-              basedOn === "design"
-                ? "figma, design systems, user research"
-                : "typescript, react, node"
-            }
+            placeholder={getField(basedOn).hint}
           />
           <p className="mt-1.5 text-sm text-faint">
-            Comma separated. Leave empty to use the usual ones for {basedOn}.
+            Comma separated. Leave empty to use the usual ones for {fieldLabel(basedOn).toLowerCase()}.
           </p>
         </div>
 

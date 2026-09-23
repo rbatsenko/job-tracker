@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
+import { fieldOf } from "./fields";
 import { inferScope, scoreJob } from "./score";
 import type { IncomingJob, Job } from "./types";
 
@@ -17,6 +18,7 @@ CREATE TABLE IF NOT EXISTS jobs (
   title         TEXT NOT NULL,
   location      TEXT,
   remote_scope  TEXT NOT NULL DEFAULT 'unknown',
+  field         TEXT NOT NULL DEFAULT 'other',
   employment    TEXT,
   salary_min    INTEGER,
   salary_max    INTEGER,
@@ -87,7 +89,17 @@ export function db(): Database.Database {
     persistent = false;
   }
   instance.exec(SCHEMA);
+  migrate(instance);
   return instance;
+}
+
+/** Columns added after the first release. */
+function migrate(d: Database.Database) {
+  const columns = (d.pragma("table_info(jobs)") as { name: string }[]).map((c) => c.name);
+  if (!columns.includes("field")) {
+    d.exec(`ALTER TABLE jobs ADD COLUMN field TEXT NOT NULL DEFAULT 'other'`);
+    reclassifyAll(d);
+  }
 }
 
 export const isPersistent = () => (db(), persistent);
@@ -101,14 +113,14 @@ export function upsertJobs(incoming: IncomingJob[]) {
   const exists = d.prepare(`SELECT 1 FROM jobs WHERE source = ? AND external_id = ?`);
   const upsert = d.prepare(`
     INSERT INTO jobs (source, external_id, url, company, company_url, title, location, remote_scope,
-      employment, salary_min, salary_max, currency, salary_period, tags, description, posted_at,
+      field, employment, salary_min, salary_max, currency, salary_period, tags, description, posted_at,
       discovered_at, updated_at)
     VALUES (@source, @external_id, @url, @company, @company_url, @title, @location, @remote_scope,
-      @employment, @salary_min, @salary_max, @currency, @salary_period, @tags, @description, @posted_at,
+      @field, @employment, @salary_min, @salary_max, @currency, @salary_period, @tags, @description, @posted_at,
       @at, @at)
     ON CONFLICT(source, external_id) DO UPDATE SET
       url = excluded.url, title = excluded.title, location = excluded.location,
-      remote_scope = excluded.remote_scope, salary_min = excluded.salary_min,
+      remote_scope = excluded.remote_scope, field = excluded.field, salary_min = excluded.salary_min,
       salary_max = excluded.salary_max, currency = excluded.currency, tags = excluded.tags,
       description = COALESCE(excluded.description, jobs.description), updated_at = excluded.updated_at
   `);
@@ -125,6 +137,7 @@ export function upsertJobs(incoming: IncomingJob[]) {
         ...j,
         external_id: id,
         remote_scope: j.remote_scope ?? "unknown",
+        field: fieldOf(j.title),
         tags: JSON.stringify(j.tags ?? []),
         at,
       });
@@ -137,6 +150,8 @@ export type JobFilter = {
   q?: string;
   source?: string;
   scope?: string;
+  /** A key from lib/fields.ts. */
+  field?: string;
   sort?: "score" | "newest" | "company";
   /** A preset name or a full profile. Without one, nothing is scored. */
   profile?: string | object;
@@ -154,6 +169,10 @@ export function listJobs(f: JobFilter = {}): { jobs: Job[]; matched: number } {
   if (f.source && f.source !== "all") {
     where.push(`source = @source`);
     params.source = f.source;
+  }
+  if (f.field && f.field !== "all") {
+    where.push(`field = @field`);
+    params.field = f.field;
   }
   if (f.scope === "reachable") {
     where.push(`remote_scope NOT IN ('us', 'other')`);
@@ -198,8 +217,29 @@ export function facets() {
       source: string;
       n: number;
     }[],
+    fields: d.prepare(`SELECT field, COUNT(*) AS n FROM jobs GROUP BY field ORDER BY n DESC`).all() as {
+      field: string;
+      n: number;
+    }[],
     total: (d.prepare(`SELECT COUNT(*) AS n FROM jobs`).get() as { n: number }).n,
   };
+}
+
+/** Re-reads every title, for when the field lists change. */
+export function reclassifyAll(d = db()) {
+  const rows = d.prepare(`SELECT id, title, field FROM jobs`).all() as { id: number; title: string; field: string }[];
+  const update = d.prepare(`UPDATE jobs SET field = ? WHERE id = ?`);
+  let changed = 0;
+  d.transaction(() => {
+    for (const r of rows) {
+      const next = fieldOf(r.title);
+      if (next !== r.field) {
+        update.run(next, r.id);
+        changed++;
+      }
+    }
+  })();
+  return { changed };
 }
 
 export function recordRun(source: string, found: number, inserted: number, error?: string) {

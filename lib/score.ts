@@ -1,4 +1,5 @@
 import { EU_CODES, countryName, detectCountry } from "./countries";
+import { fieldLabel, fieldOf } from "./fields";
 import { getProfile, resolveProfile, type Profile } from "./profile";
 import type { IncomingJob, Scope } from "./types";
 
@@ -63,17 +64,21 @@ export function scoreJob(job: IncomingJob, profile?: string | object | null) {
   if (core.length) reasons.push(`Core stack: ${core.slice(0, 4).join(", ")}`);
   if (bonus.length) reasons.push(`Topics: ${bonus.slice(0, 3).join(", ")}`);
 
-  const good = matches(title, p.goodTitles);
-  const bad = matches(title, p.badTitles);
-  score += Math.min(good.length * 3, 8) - bad.length * 25;
-  if (bad.length) reasons.push(`Off-profile title: ${bad.join(", ")}`);
-
-  // The description can be full of the right words while the job is something else.
-  if (!matches(title, p.goodTitles.filter((t) => !SENIORITY.includes(t))).length) {
-    score -= 14;
-    reasons.push("Title does not name this kind of role");
+  // The description can be full of the right words while the job is something else,
+  // so the title decides which field a listing is in.
+  if (p.field !== "other") {
+    const field = fieldOf(job.title);
+    if (field === "other") {
+      score -= 14;
+      reasons.push("Title does not say what kind of role this is");
+    } else if (field !== p.field) {
+      score -= 25;
+      reasons.push(`${fieldLabel(field)} role, not ${p.label.toLowerCase()}`);
+    }
   }
-  if (/\b(senior|staff|lead|principal)\b/.test(title)) reasons.push("Senior-level title");
+  const senior = matches(title, SENIORITY);
+  score += Math.min(senior.length * 3, 8);
+  if (senior.length) reasons.push("Senior-level title");
 
   const { floor, strong, currency } = p.money;
   if (job.salary_max && (floor || strong)) {

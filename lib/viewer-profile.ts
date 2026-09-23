@@ -1,9 +1,12 @@
 /** The viewer's ranking preferences. Absent by default, so the board shows no scores. */
 
+import { fieldLabel } from "./fields";
+
 const KEY = "job-tracker:profile:v2";
 
 export type ViewerProfile = {
-  basedOn: "engineering" | "design";
+  /** A key from lib/fields.ts. */
+  basedOn: string;
   label: string;
   /** Free text from the form, split on commas. Empty means use the preset's. */
   coreStack: string[];
@@ -19,11 +22,20 @@ export const BLANK_PROFILE: ViewerProfile = {
   money: { floor: 0, currency: "EUR" },
 };
 
+/** A saved profile with its field filled in from the current lists. */
+export const withField = (p: ViewerProfile, basedOn: string): ViewerProfile => ({
+  ...p,
+  basedOn,
+  label: fieldLabel(basedOn),
+  coreStack: p.basedOn === basedOn ? p.coreStack : [],
+});
+
 export function readProfile(): ViewerProfile | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = window.localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as ViewerProfile) : null;
+    const p = raw ? (JSON.parse(raw) as ViewerProfile) : null;
+    return p && withField(p, p.basedOn);
   } catch {
     return null;
   }

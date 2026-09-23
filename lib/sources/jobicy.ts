@@ -1,6 +1,6 @@
 import { inferScope } from "../score";
 import type { IncomingJob } from "../types";
-import { getJSON, isRelevant, stripHtml } from "./util";
+import { getJSON, stripHtml } from "./util";
 
 type Row = {
   id: string | number;
@@ -25,8 +25,8 @@ const num = (v: unknown) => {
   return Number.isFinite(n) && n > 0 ? n : null;
 };
 
-// Design lives under "design-multimedia"; plain "design" returns nothing.
-const INDUSTRIES = ["engineering", "design-multimedia"];
+// The industry slugs the API answers to. Others return nothing or an error.
+const INDUSTRIES = ["engineering", "design-multimedia", "data-science", "marketing", "business", "management", "supporting", "hr"];
 
 export async function fetchJobicy(): Promise<IncomingJob[]> {
   const batches = await Promise.all(
@@ -56,5 +56,4 @@ export async function fetchJobicy(): Promise<IncomingJob[]> {
       currency: r.salaryCurrency ?? null,
       salary_period: r.salaryPeriod === "hourly" ? "hour" : (r.salaryPeriod ?? null),
     }))
-    .filter(isRelevant);
 }

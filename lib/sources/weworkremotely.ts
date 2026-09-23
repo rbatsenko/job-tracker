@@ -1,13 +1,8 @@
 import { inferScope } from "../score";
 import type { IncomingJob } from "../types";
-import { decodeEntities, getText, isRelevant, stripHtml } from "./util";
+import { decodeEntities, getText, stripHtml } from "./util";
 
-const FEEDS = [
-  "https://weworkremotely.com/categories/remote-programming-jobs.rss",
-  "https://weworkremotely.com/categories/remote-full-stack-programming-jobs.rss",
-  "https://weworkremotely.com/categories/remote-front-end-programming-jobs.rss",
-  "https://weworkremotely.com/categories/remote-design-jobs.rss",
-];
+const FEEDS = ["https://weworkremotely.com/remote-jobs.rss"];
 
 const tag = (xml: string, name: string) => {
   const m = xml.match(new RegExp(`<${name}>([\\s\\S]*?)</${name}>`, "i"));
@@ -49,5 +44,5 @@ export async function fetchWeWorkRemotely(): Promise<IncomingJob[]> {
       });
     }
   }
-  return out.filter(isRelevant);
+  return out;
 }

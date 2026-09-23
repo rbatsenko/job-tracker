@@ -39,6 +39,8 @@ export type IncomingJob = {
 export type Job = Required<Omit<IncomingJob, "remote_scope">> & {
   id: number;
   remote_scope: Scope;
+  /** A key from lib/fields.ts, read from the title. */
+  field: string;
   discovered_at: string;
   fit_score: number;
   fit_reasons: string[];
