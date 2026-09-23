@@ -48,7 +48,7 @@ export async function GET(request: Request) {
   return respond(readFilter(new URL(request.url).searchParams));
 }
 
-/** Same as GET, with a custom profile in the body — too big for a query string. */
+/** Same as GET, with a custom profile in the body, since it's too big for a query string. */
 export async function POST(request: Request) {
   await ensureCatalogue();
   const body = (await request.json().catch(() => ({}))) as { profile?: object };

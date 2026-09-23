@@ -13,7 +13,7 @@ const EXAMPLE = `{
       "location": "Remote (Europe)",
       "status": "applied",
       "notes": "Referred by a friend",
-      "draft": "Hi — I saw you're hiring...",
+      "draft": "Hi, I saw you're hiring...",
       "next_action": "Follow up Friday",
       "applied_at": "2026-09-22T10:00:00.000Z"
     }
@@ -25,9 +25,9 @@ export default function SavingHelp({ onClose }: { onClose: () => void }) {
     <section className={`${card} mb-6 p-5 sm:p-6`}>
       <h2 className="text-lg font-semibold">Where your jobs are saved</h2>
       <p className="mt-2 max-w-prose text-base text-soft">
-        Only in this browser. Nothing is sent to a server, so your notes and drafts stay with you — but
-        they won't appear on another device, or survive clearing site data. Export is how you move them
-        and how you back them up.
+        Only in this browser. Nothing is sent to a server, so your notes and drafts stay private. They
+        won't show up on another device or survive clearing site data, so use Export to move or back
+        them up.
       </p>
 
       <dl className="mt-5 space-y-4 text-base">

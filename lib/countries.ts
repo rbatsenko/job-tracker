@@ -1,6 +1,6 @@
 export type Country = { code: string; name: string; eu: boolean; hints?: string[] };
 
-/** `eu` covers EU, EEA and Switzerland — "can I work there from Europe". */
+/** `eu` covers EU, EEA and Switzerland: "can I work there from Europe". */
 export const COUNTRIES: Country[] = [
   { code: "at", name: "Austria", eu: true, hints: ["vienna"] },
   { code: "be", name: "Belgium", eu: true, hints: ["brussels"] },

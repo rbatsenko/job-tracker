@@ -73,7 +73,7 @@ export default function MyJobsPage() {
     try {
       const added = importMyJobs(await file.text());
       mutate(() => {});
-      setMessage({ tone: "ok", text: added ? `Added ${plural(added, "job")}.` : "Nothing new — existing jobs were updated." });
+      setMessage({ tone: "ok", text: added ? `Added ${plural(added, "job")}.` : "Nothing new. Existing jobs were updated." });
     } catch {
       setMessage({ tone: "error", text: "That file couldn't be read. It should be a my-jobs.json exported from here." });
     }
@@ -81,7 +81,7 @@ export default function MyJobsPage() {
 
   async function copyList() {
     await navigator.clipboard.writeText(copyForAssistant());
-    setMessage({ tone: "ok", text: `Copied ${plural(jobs.length, "job")} with instructions — paste it into Claude.` });
+    setMessage({ tone: "ok", text: `Copied ${plural(jobs.length, "job")} with instructions. Paste it into Claude.` });
   }
 
   const applied = jobs.filter((j) => j.status === "applied").length;

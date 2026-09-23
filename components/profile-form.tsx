@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import Select from "@/components/select";
+import { input as field } from "@/components/styles";
 import { COUNTRY_OPTIONS, countryName } from "@/lib/countries";
 import {
   BLANK_PROFILE,
@@ -8,11 +10,9 @@ import {
   type ViewerProfile,
 } from "@/lib/viewer-profile";
 
-const field =
-  "h-11 w-full rounded-field border border-line bg-bg px-3.5 text-base outline-none focus:border-brand";
 const label = "mb-1.5 block text-base font-medium";
+const CURRENCIES = ["EUR", "USD", "GBP", "PLN"] as const;
 
-/** Broad strokes; specific countries come from the picker below them. */
 const BROAD: { key: string; label: string }[] = [
   { key: "worldwide", label: "Anywhere remote" },
   { key: "eu", label: "Anywhere in Europe" },
@@ -59,7 +59,7 @@ export default function ProfileForm({
     >
       <h2 className="text-xl font-semibold">Rank these jobs for you</h2>
       <p className="mt-1.5 max-w-prose text-base text-soft">
-        Nothing here leaves your browser. Skip any of it — anything you leave blank is
+        Nothing here leaves your browser. Skip any of it, anything you leave blank is
         simply not used.
       </p>
 
@@ -126,21 +126,17 @@ export default function ProfileForm({
           </div>
 
           <div className="mt-3">
-            <select
+            <Select
+              label="Add a country…"
+              inset
+              className="w-full sm:w-72"
               value=""
-              onChange={(e) => {
-                if (e.target.value) toggleRegion(e.target.value);
-              }}
-              aria-label="Add a country"
-              className="h-11 w-full rounded-field border border-line bg-bg px-3 text-base sm:w-72"
-            >
-              <option value="">Add a country…</option>
-              {COUNTRY_OPTIONS.filter((c) => !regions.includes(c.code)).map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+              onChange={toggleRegion}
+              options={COUNTRY_OPTIONS.filter((c) => !regions.includes(c.code)).map((c) => ({
+                value: c.code,
+                label: c.name,
+              }))}
+            />
           </div>
 
           {countryPicks.length > 0 && (
@@ -193,20 +189,19 @@ export default function ProfileForm({
               className={field}
               value={floor}
               onChange={(e) => setFloor(e.target.value)}
-              placeholder="Leave empty to ignore salary"
+              placeholder="Optional"
             />
-            <select
+            <Select
+              label="Currency"
+              inset
+              className="w-28 shrink-0"
+              align="end"
               value={currency}
-              onChange={(e) => setCurrency(e.target.value as ViewerProfile["money"]["currency"])}
-              aria-label="Currency"
-              className="h-11 shrink-0 rounded-field border border-line bg-bg px-3 text-base"
-            >
-              {["EUR", "USD", "GBP", "PLN"].map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </select>
+              onChange={(v) => setCurrency(v as (typeof CURRENCIES)[number])}
+              options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+            />
           </div>
-          <p className="mt-1.5 text-sm text-faint">Gross per year.</p>
+          <p className="mt-1.5 text-sm text-faint">Gross per year. Leave empty to ignore salary.</p>
         </div>
       </div>
 

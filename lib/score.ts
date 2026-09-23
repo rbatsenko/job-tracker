@@ -21,7 +21,7 @@ function geography(scope: string, { regions, canWorkUS, willRelocate }: Profile[
   if (scope === "us")
     return canWorkUS
       ? { points: 20, reason: "United States, which works for you" }
-      : { points: -35, reason: "US-only — likely a dead end" };
+      : { points: -35, reason: "US-only, likely a dead end" };
   if (scope === "eu") return { points: europe ? 20 : worldwide ? 4 : -8, reason: europe ? "Remote across Europe" : null };
   if (scope === "other")
     return { points: willRelocate ? 4 : -12, reason: willRelocate ? null : "On-site, outside where you work" };
@@ -33,7 +33,7 @@ function geography(scope: string, { regions, canWorkUS, willRelocate }: Profile[
   return { points: -10, reason: `In ${countryName(scope)}, outside where you can work` };
 }
 
-/** Scores a listing 0–100 for one viewer. Geography dominates: a great job you can't take is worth little. */
+/** Scores a listing 0-100 for one viewer. Geography dominates: a great job you can't take is worth little. */
 export function scoreJob(job: IncomingJob, profile?: string | object | null) {
   const p = profile && typeof profile === "object" ? resolveProfile(profile) : getProfile(profile);
   const title = job.title.toLowerCase();
@@ -58,7 +58,7 @@ export function scoreJob(job: IncomingJob, profile?: string | object | null) {
     score += stack;
   } else {
     score += Math.round(stack / 2 + 34 / 4);
-    reasons.push("Short listing — scored mostly on title and tags");
+    reasons.push("Short listing, scored mostly on title and tags");
   }
   if (core.length) reasons.push(`Core stack: ${core.slice(0, 4).join(", ")}`);
   if (bonus.length) reasons.push(`Topics: ${bonus.slice(0, 3).join(", ")}`);

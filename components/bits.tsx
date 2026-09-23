@@ -59,6 +59,7 @@ export function StagePicker({
     <Select
       id={id}
       label="Stage"
+      inset
       value={value}
       onChange={(v) => onChange(v as Status)}
       options={STATUSES.map((s) => ({ value: s, label: stageLabel(s), swatch: TONE_STYLE[TONE[s]].swatch }))}
@@ -77,7 +78,7 @@ export function money(j: {
   if (!j.salary_max) return null;
   const monthly = j.salary_period === "month";
   const short = (n: number) => (n >= 10_000 && !monthly ? `${Math.round(n / 1000)}K` : n.toLocaleString());
-  const range = j.salary_min && j.salary_min !== j.salary_max ? `${short(j.salary_min)}–${short(j.salary_max)}` : short(j.salary_max);
+  const range = j.salary_min && j.salary_min !== j.salary_max ? `${short(j.salary_min)}-${short(j.salary_max)}` : short(j.salary_max);
   const per = monthly ? "/mo" : j.salary_period === "hour" ? "/h" : "";
   const symbol = SYMBOL[j.currency ?? "USD"];
   return symbol ? `${symbol}${range}${per}` : `${range} ${j.currency}${per}`;

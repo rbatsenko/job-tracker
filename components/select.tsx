@@ -5,7 +5,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 export type Option = {
   value: string;
   label: string;
-  /** Shown dimmed to the right — counts, extra context. */
+  /** Shown dimmed on the right, like a count. */
   hint?: string;
   /** Options sharing a group are rendered under one heading. */
   group?: string;
@@ -22,6 +22,10 @@ type Props = {
   searchable?: boolean;
   className?: string;
   id?: string;
+  /** Which edge the menu lines up with. Use "end" near the right side of the screen. */
+  align?: "start" | "end";
+  /** Match text inputs inside forms instead of controls on the page background. */
+  inset?: boolean;
 };
 
 /** A styled select following the ARIA combobox pattern, with keyboard support and type-ahead. */
@@ -33,6 +37,8 @@ export default function Select({
   searchable,
   className = "",
   id,
+  align = "start",
+  inset = false,
 }: Props) {
   const reactId = useId();
   const baseId = id ?? reactId;
@@ -166,7 +172,7 @@ export default function Select({
         aria-label={label}
         onClick={() => setOpen((v) => !v)}
         onKeyDown={onKeyDown}
-        className="flex h-11 w-full items-center gap-2 rounded-field border border-line bg-raised px-3.5 text-left text-base transition hover:border-line-strong"
+        className={`flex h-11 w-full items-center gap-2 rounded-field border border-line ${inset ? "bg-bg" : "bg-raised"} px-3.5 text-left text-base transition hover:border-line-strong`}
       >
         {selected?.swatch && (
           <span
@@ -175,7 +181,7 @@ export default function Select({
             style={{ background: selected.swatch }}
           />
         )}
-        <span className="min-w-0 flex-1 truncate">{selected?.label ?? label}</span>
+        <span className={`min-w-0 flex-1 truncate ${selected ? "" : "text-faint"}`}>{selected?.label ?? label}</span>
         <svg
           aria-hidden
           viewBox="0 0 12 12"
@@ -186,7 +192,7 @@ export default function Select({
       </button>
 
       {open && (
-        <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-50 min-w-[14rem] overflow-hidden rounded-card border border-line bg-raised shadow-[var(--shadow)]">
+        <div className={`absolute ${align === "end" ? "right-0" : "left-0"} top-[calc(100%+4px)] z-50 w-full min-w-[14rem] overflow-hidden rounded-card border border-line bg-raised shadow-[var(--shadow)]`}>
           {withSearch && (
             <div className="border-b border-line p-2">
               <input

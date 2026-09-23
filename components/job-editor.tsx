@@ -74,9 +74,9 @@ export default function JobEditor({ job, onChange, onDelete, onClose }: Props) {
           {job.fit_reasons.length > 0 && (
             <div className="rounded-field border border-line bg-raised p-4">
               <p className="mb-2 text-sm font-medium text-soft">Scored {job.fit_score} when you added it</p>
-              <ul className="space-y-1 text-sm text-soft">
+              <ul className="list-disc space-y-1 pl-5 text-sm text-soft">
                 {job.fit_reasons.map((r) => (
-                  <li key={r}>— {r}</li>
+                  <li key={r}>{r}</li>
                 ))}
               </ul>
             </div>

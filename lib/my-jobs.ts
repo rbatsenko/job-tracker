@@ -2,7 +2,7 @@ import type { Scope, Status } from "./types";
 
 /**
  * My jobs lives in the browser, so one deployment serves many people without accounts.
- * Entries are snapshots, never references into the catalogue — on Vercel the catalogue
+ * Entries are snapshots, never references into the catalogue. On Vercel the catalogue
  * is rebuilt per instance and its ids aren't stable.
  */
 

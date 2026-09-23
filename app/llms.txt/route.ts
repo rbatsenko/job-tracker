@@ -7,13 +7,13 @@ export const dynamic = "force-dynamic";
 export function GET(request: Request) {
   const base = new URL(request.url).origin;
   const local = isPersistent();
-  const sources = Object.values(SOURCE_INFO).map((s) => `  ${s.name} — ${s.url}`).join("\n");
+  const sources = Object.values(SOURCE_INFO).map((s) => `  ${s.name}: ${s.url}`).join("\n");
 
   const body = `# Jobshelf
 
 A personal job-application tracker.
-  ${base}/        My jobs — the jobs this person is pursuing
-  ${base}/board   Find jobs — listings from public job board APIs
+  ${base}/        My jobs, the jobs this person is pursuing
+  ${base}/board   Find jobs, listings from public job board APIs
 
 ## My jobs lives in the browser
 
@@ -54,8 +54,8 @@ GET ${base}/api/jobs
   scope      reachable (not US-only, not on-site) | worldwide | eu | us | <country code> | all
   source     one source, or all
   sort       newest | company | score
-  profile    engineering | design — without it nothing is scored and fit_score is 0
-  minScore   0–100, only with a profile
+  profile    engineering | design. Without it nothing is scored and fit_score is 0
+  minScore   0-100, only with a profile
   limit      default 25, max 1000
   full=1     whole descriptions instead of the first 280 characters
 
