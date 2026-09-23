@@ -13,7 +13,7 @@ export type Option = {
   swatch?: string;
 };
 
-type Props = {
+type SelectProps = {
   value: string;
   onChange: (value: string) => void;
   options: Option[];
@@ -39,7 +39,7 @@ export default function Select({
   id,
   align = "start",
   inset = false,
-}: Props) {
+}: SelectProps) {
   const reactId = useId();
   const baseId = id ?? reactId;
   const listId = `${baseId}-list`;

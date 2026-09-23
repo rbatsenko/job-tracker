@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import AddJobForm from "@/components/add-job-form";
+import FeatureTip from "@/components/feature-tip";
 import { ScopeTag, StageBar, money, sinceLabel, stageLabel } from "@/components/bits";
 import JobEditor from "@/components/job-editor";
 import SavingHelp from "@/components/saving-help";
@@ -169,16 +170,29 @@ export default function MyJobsPage() {
           )}
           <button onClick={() => fileInput.current?.click()} className={toolbarButton}>Import</button>
           {canSync && (
-            <button
-              onClick={() => {
-                setShowSync((v) => !v);
-                setShowHelp(false);
-              }}
-              aria-expanded={showSync}
-              className={`${toolbarButton} ${syncState ? "text-brand" : ""}`}
-            >
-              {syncState ? "Synced" : "Sync"}
-            </button>
+            <span className="relative flex flex-1 sm:flex-none">
+              <button
+                onClick={() => {
+                  setShowSync((v) => !v);
+                  setShowHelp(false);
+                }}
+                aria-expanded={showSync}
+                className={`${toolbarButton} ${syncState ? "text-brand" : ""}`}
+              >
+                {syncState ? "Synced" : "Sync"}
+              </button>
+              <FeatureTip
+                id="sync"
+                when={ready && jobs.length > 0 && !syncState && !showSync}
+                title="New: sync between devices"
+                text="Keep your phone and laptop on the same list with a code. No account, and the list is encrypted before it leaves your browser."
+                action="Show me"
+                onAction={() => {
+                  setShowSync(true);
+                  setShowHelp(false);
+                }}
+              />
+            </span>
           )}
           <input
             ref={fileInput}

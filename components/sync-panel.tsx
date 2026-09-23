@@ -5,7 +5,7 @@ import { sinceLabel } from "./bits";
 import { card, input, primaryButton, secondaryButton } from "./styles";
 import { deleteSynced, forgetSync, newCode, normalizeCode, prettyCode, syncNow, type SyncState } from "@/lib/sync";
 
-type Props = {
+type SyncPanelProps = {
   state: SyncState | null;
   available: boolean;
   /** Runs a sync and reloads the list. Resolves to a short summary, or throws. */
@@ -14,7 +14,7 @@ type Props = {
   onClose: () => void;
 };
 
-export default function SyncPanel({ state, available, onSync, onChange, onClose }: Props) {
+export default function SyncPanel({ state, available, onSync, onChange, onClose }: SyncPanelProps) {
   const [typed, setTyped] = useState("");
   const [shown, setShown] = useState(false);
   const [busy, setBusy] = useState(false);

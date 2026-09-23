@@ -5,7 +5,7 @@ import { StagePicker } from "./bits";
 import { input, label, textarea, secondaryButton } from "./styles";
 import type { MyJob } from "@/lib/my-jobs";
 
-type Props = {
+type JobEditorProps = {
   job: MyJob;
   onChange: (patch: Partial<MyJob>) => void;
   onDelete: () => void;
@@ -15,7 +15,7 @@ type Props = {
 type TextKey = "company" | "title" | "url" | "location" | "next_action" | "draft" | "notes";
 
 /** Edits save on blur, so typing doesn't write to storage on every keystroke. */
-export default function JobEditor({ job, onChange, onDelete, onClose }: Props) {
+export default function JobEditor({ job, onChange, onDelete, onClose }: JobEditorProps) {
   const id = useId();
   const [values, setValues] = useState(job);
   const [confirming, setConfirming] = useState(false);

@@ -4,6 +4,6 @@ export const SITE = {
   tagline: "Job application tracker",
   description:
     "Keep track of the jobs you're applying to and find remote roles that aren't US-only. Free, no sign-up, and your list stays in your browser.",
-  repo: "https://github.com/rbatsenko/job-tracker",
+  repo: "https://github.com/rbatsenko/jobshelf",
   author: { name: "Roman Batsenko", url: "https://rbatsenko.com" },
 };
