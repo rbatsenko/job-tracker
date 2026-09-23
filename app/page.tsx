@@ -461,7 +461,7 @@ function AddForm({
         </div>
         <div>
           <label className={label} htmlFor="s">Stage</label>
-          <StagePicker value={status} onChange={setStatus} />
+          <StagePicker id="s" value={status} onChange={setStatus} />
         </div>
       </div>
       <div className="mt-6 flex gap-3">
@@ -516,8 +516,8 @@ function Editor({
               <input className={field} value={local.location ?? ""} onChange={(e) => set("location", e.target.value)} onBlur={() => commit("location")} />
             </div>
             <div>
-              <label className={label}>Stage</label>
-              <StagePicker value={local.status} onChange={(s) => onChange({ status: s })} />
+              <label className={label} htmlFor={`stage-${local.id}`}>Stage</label>
+              <StagePicker id={`stage-${local.id}`} value={local.status} onChange={(s) => onChange({ status: s })} />
             </div>
             <div>
               <label className={label}>What is next</label>

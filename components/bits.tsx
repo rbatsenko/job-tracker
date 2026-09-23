@@ -1,5 +1,6 @@
 "use client";
 
+import Select from "./select";
 import { countryName } from "@/lib/countries";
 import { STATUSES, type Status } from "@/lib/types";
 
@@ -57,26 +58,42 @@ export function StageBar({ status }: { status: Status }) {
   );
 }
 
+const STAGE_SWATCH: Record<string, string> = {
+  new: "var(--quiet)",
+  shortlist: "var(--live)",
+  drafted: "var(--live)",
+  applied: "var(--live)",
+  replied: "var(--live)",
+  interviewing: "var(--live)",
+  offer: "var(--won)",
+  rejected: "var(--closed)",
+  archived: "var(--quiet)",
+};
+
 export function StagePicker({
   value,
   onChange,
+  className,
+  id,
 }: {
   value: Status;
   onChange: (s: Status) => void;
+  className?: string;
+  id?: string;
 }) {
   return (
-    <select
+    <Select
+      label="Stage"
+      id={id}
+      className={className}
       value={value}
-      onChange={(e) => onChange(e.target.value as Status)}
-      aria-label="Stage"
-      className="h-11 rounded-field border border-line bg-raised px-3 text-base"
-    >
-      {STATUSES.map((s) => (
-        <option key={s} value={s}>
-          {stageLabel(s)}
-        </option>
-      ))}
-    </select>
+      onChange={(v) => onChange(v as Status)}
+      options={STATUSES.map((s) => ({
+        value: s,
+        label: stageLabel(s),
+        swatch: STAGE_SWATCH[s],
+      }))}
+    />
   );
 }
 

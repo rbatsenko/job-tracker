@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ProfileForm from "@/components/profile-form";
+import Select from "@/components/select";
 import { ScopeTag, money } from "@/components/bits";
 import { COUNTRY_OPTIONS } from "@/lib/countries";
 import { addFromBoard, trackedOrigins } from "@/lib/my-jobs";
@@ -23,6 +24,7 @@ type Payload = {
 
 const control =
   "h-11 rounded-field border border-line bg-raised px-3.5 text-base outline-none focus:border-brand";
+
 
 export default function Board() {
   const [data, setData] = useState<Payload | null>(null);
@@ -228,31 +230,45 @@ export default function Board() {
           className={`${control} col-span-2 sm:w-72`}
           aria-label="Search"
         />
-        <select value={scope} onChange={(e) => setScope(e.target.value)} className={control} aria-label="Location">
-          <option value="reachable">Not US-only</option>
-          <option value="all">Anywhere</option>
-          <option value="worldwide">Remote worldwide</option>
-          <option value="eu">Remote in Europe</option>
-          <option value="unknown">Location not stated</option>
-          <optgroup label="Country">
-            {COUNTRY_OPTIONS.map((c) => (
-              <option key={c.code} value={c.code}>
-                {c.name}
-              </option>
-            ))}
-          </optgroup>
-        </select>
-        <select value={source} onChange={(e) => setSource(e.target.value)} className={control} aria-label="Board">
-          <option value="all">All boards</option>
-          {(data?.facets.sources ?? []).map((s) => (
-            <option key={s.source} value={s.source}>{`${s.source} (${s.n})`}</option>
-          ))}
-        </select>
-        <select value={sort} onChange={(e) => setSort(e.target.value)} className={control} aria-label="Sort">
-          <option value="newest">Newest</option>
-          <option value="company">Company</option>
-          {scored && <option value="score">Best fit</option>}
-        </select>
+        <Select
+          label="Location"
+          className="w-full"
+          value={scope}
+          onChange={setScope}
+          options={[
+            { value: "reachable", label: "Not US-only" },
+            { value: "all", label: "Anywhere" },
+            { value: "worldwide", label: "Remote worldwide" },
+            { value: "eu", label: "Remote in Europe" },
+            { value: "unknown", label: "Location not stated" },
+            ...COUNTRY_OPTIONS.map((c) => ({ value: c.code, label: c.name, group: "Country" })),
+          ]}
+        />
+        <Select
+          label="Board"
+          className="w-full"
+          value={source}
+          onChange={setSource}
+          options={[
+            { value: "all", label: "All boards" },
+            ...(data?.facets.sources ?? []).map((s) => ({
+              value: s.source,
+              label: s.source,
+              hint: String(s.n),
+            })),
+          ]}
+        />
+        <Select
+          label="Sort"
+          className="w-full"
+          value={sort}
+          onChange={setSort}
+          options={[
+            { value: "newest", label: "Newest" },
+            { value: "company", label: "Company" },
+            ...(scored ? [{ value: "score", label: "Best fit" }] : []),
+          ]}
+        />
         <span className="col-span-2 text-sm text-faint sm:ml-auto">{rows.length} shown</span>
       </div>
 
