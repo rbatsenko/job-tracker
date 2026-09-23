@@ -158,3 +158,6 @@ lib/sources/    one adapter per board
 ```
 
 `data/` is gitignored, so your list, notes and drafts never reach the repo.
+
+Page views are counted with Vercel Web Analytics, which sets no cookies and sees no
+page content. Your list, notes and drafts are never part of it.
