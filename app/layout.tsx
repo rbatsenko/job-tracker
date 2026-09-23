@@ -1,13 +1,53 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Figtree } from "next/font/google";
+import Footer from "@/components/footer";
 import Nav from "@/components/nav";
+import { SITE } from "@/lib/site";
 import "./globals.css";
 
 const figtree = Figtree({ subsets: ["latin"], variable: "--font-figtree", display: "swap" });
 
 export const metadata: Metadata = {
-  title: { default: "Jobshelf", template: "%s · Jobshelf" },
-  description: "Track the jobs you are actually pursuing, and find new ones.",
+  metadataBase: new URL(SITE.url),
+  title: { default: `${SITE.name} · ${SITE.tagline}`, template: `%s · ${SITE.name}` },
+  description: SITE.description,
+  applicationName: SITE.name,
+  authors: [SITE.author],
+  creator: SITE.author.name,
+  keywords: ["job tracker", "job application tracker", "remote jobs", "job search", "Europe remote jobs"],
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    url: "/",
+    siteName: SITE.name,
+    title: `${SITE.name} · ${SITE.tagline}`,
+    description: SITE.description,
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${SITE.name} · ${SITE.tagline}`,
+    description: SITE.description,
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fbf9f7" },
+    { media: "(prefers-color-scheme: dark)", color: "#14161a" },
+  ],
+};
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  name: SITE.name,
+  url: SITE.url,
+  description: SITE.description,
+  applicationCategory: "BusinessApplication",
+  operatingSystem: "Any",
+  offers: { "@type": "Offer", price: "0", priceCurrency: "EUR" },
+  author: { "@type": "Person", name: SITE.author.name, url: SITE.author.url },
 };
 
 // Sets the theme before first paint so there is no flash.
@@ -22,10 +62,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       </head>
-      <body className={`${figtree.className} min-h-screen`}>
+      <body className={`${figtree.className} flex min-h-screen flex-col`}>
         <Nav />
-        {children}
+        <div className="flex-1">{children}</div>
+        <Footer />
       </body>
     </html>
   );
