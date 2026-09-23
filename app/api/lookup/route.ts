@@ -163,6 +163,41 @@ async function ashby(u: URL): Promise<Found | null> {
   };
 }
 
+/**
+ * Traffit — a Polish applicant system, widely used here. No JSON-LD and no
+ * public API, but the posting is server-rendered: the title is in og:title and
+ * the employer is the subdomain, which is enough to save the retyping.
+ */
+async function traffit(u: URL): Promise<Found | null> {
+  const res = await get(u.toString(), false);
+  if (!res.ok) return null;
+  const html = await res.text();
+
+  const pick = (re: RegExp) => html.match(re)?.[1]?.trim() || null;
+  const title =
+    pick(/property=["']og:title["'][^>]*content=["']([^"']+)/i) ??
+    pick(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.replace(/<[^>]+>/g, "").trim() ??
+    pick(/<title>([^<]+)<\/title>/i);
+  if (!title) return null;
+
+  const company = u.hostname.split(".")[0];
+  const remote = /remote_status\.remote/.test(html);
+  const published = pick(/published_on[^0-9]*(\d{2})\/(\d{2})\/(\d{4})/)
+    ? html.match(/published_on[^0-9]*(\d{2})\/(\d{2})\/(\d{4})/)
+    : null;
+
+  return {
+    // Subdomains are lowercase; capitalise so it reads like a company name.
+    company: company.charAt(0).toUpperCase() + company.slice(1),
+    title,
+    location: remote ? "Remote" : null,
+    url: u.toString(),
+    description: stripHtml(html, 1500),
+    posted_at: published ? `${published[3]}-${published[2]}-${published[1]}` : null,
+    via: "Traffit",
+  };
+}
+
 export async function POST(request: Request) {
   const { url } = (await request.json().catch(() => ({}))) as { url?: string };
   const u = url ? safe(url) : null;
@@ -175,6 +210,7 @@ export async function POST(request: Request) {
     if (host.endsWith("greenhouse.io")) found = await greenhouse(u);
     else if (host.endsWith("lever.co")) found = await lever(u);
     else if (host.endsWith("ashbyhq.com")) found = await ashby(u);
+    else if (host.endsWith("traffit.com")) found = await traffit(u);
 
     // Anything else, and anything the above could not place: read the page.
     if (!found) {
