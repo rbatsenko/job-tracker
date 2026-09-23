@@ -30,7 +30,11 @@ This copy runs locally with a database, so here you can also use:
     : ""
 }
 If you change their list, hand back the whole document in the same shape and keep
-every "id". Import merges on id, so edits update entries instead of duplicating them.
+every "id". Import merges on id and only touches the fields you include, so edits
+update entries instead of duplicating them or blanking what you left out.
+
+They may also sync between devices with a code. The server stores only an encrypted
+copy under a hash of the code; there is no way to read a list through the API.
 
   {
     "version": 1,

@@ -35,7 +35,8 @@ export type MyJob = {
   updated_at: string;
 };
 
-type MyJobsFile = { version: 1; exported_at: string; jobs: MyJob[] };
+/** `removed` remembers deletions, so a copy on another device doesn't bring a job back. */
+type MyJobsFile = { version: 1; exported_at: string; jobs: MyJob[]; removed?: Record<string, string> };
 
 const now = () => new Date().toISOString();
 // randomUUID only exists in secure contexts; plain http on a LAN address has none.
@@ -64,20 +65,29 @@ const BLANK: Omit<MyJob, "id" | "company" | "title" | "created_at" | "updated_at
   next_action: null,
 };
 
-function read(): MyJob[] {
-  if (typeof window === "undefined") return [];
+const TOMBSTONE_DAYS = 90;
+
+function readDoc(): { jobs: MyJob[]; removed: Record<string, string> } {
+  if (typeof window === "undefined") return { jobs: [], removed: {} };
   try {
     const parsed = JSON.parse(localStorage.getItem(KEY) ?? "[]") as MyJobsFile | MyJob[];
     const jobs = Array.isArray(parsed) ? parsed : parsed.jobs;
-    return (jobs ?? []).filter((j) => typeof j?.id === "string");
+    return {
+      jobs: (jobs ?? []).filter((j) => typeof j?.id === "string"),
+      removed: Array.isArray(parsed) ? {} : (parsed.removed ?? {}),
+    };
   } catch {
-    return [];
+    return { jobs: [], removed: {} };
   }
 }
 
-function write(jobs: MyJob[]) {
+const read = () => readDoc().jobs;
+
+function write(jobs: MyJob[], removed: Record<string, string> = readDoc().removed) {
+  const cutoff = Date.now() - TOMBSTONE_DAYS * 86_400_000;
+  const kept = Object.fromEntries(Object.entries(removed).filter(([, at]) => Date.parse(at) > cutoff));
   try {
-    localStorage.setItem(KEY, JSON.stringify({ version: 1, exported_at: now(), jobs }));
+    localStorage.setItem(KEY, JSON.stringify({ version: 1, exported_at: now(), jobs, removed: kept }));
   } catch (err) {
     throw new Error(
       `Couldn't save to this browser's storage${err instanceof Error ? ` (${err.message})` : ""}. Export your jobs before changing anything else.`,
@@ -183,13 +193,17 @@ export function updateMyJob(id: string, patch: Partial<MyJob>) {
 }
 
 export function removeMyJob(id: string) {
-  write(read().filter((j) => j.id !== id));
+  const { jobs, removed } = readDoc();
+  write(jobs.filter((j) => j.id !== id), { ...removed, [id]: now() });
 }
 
 // ---------------------------------------------------------------- import / export
 
 export const exportMyJobs = () =>
   JSON.stringify({ version: 1, exported_at: now(), jobs: read() } satisfies MyJobsFile, null, 2);
+
+/** The whole document, deletions included, for sync. */
+export const exportDoc = () => JSON.stringify({ version: 1, exported_at: now(), ...readDoc() } satisfies MyJobsFile);
 
 /** The export plus a short brief, so pasting it into an assistant needs no explanation. */
 export function copyForAssistant() {
@@ -205,32 +219,54 @@ Statuses: new, shortlist, drafted, applied, replied, interviewing, offer, reject
 ${exportMyJobs()}`;
 }
 
+export type MergeResult = { added: number; updated: number; removed: number };
+
 /**
- * Merges on origin, then id. A matched job only takes the fields the file actually
- * has, so a partial edit from an assistant can't blank out notes or reset a stage.
- * Returns how many jobs were new.
+ * Merges another copy of the list into this one. Jobs match on origin, then id.
+ * A matched job takes only the fields the copy has (so a partial edit from an
+ * assistant can't blank out notes), and only when the copy isn't older. Deletions
+ * recorded in the copy are applied here unless the job was edited since.
  */
-export function importMyJobs(json: string): number {
-  const parsed = JSON.parse(json) as MyJobsFile | MyJob[];
-  const incoming = Array.isArray(parsed) ? parsed : parsed.jobs;
+export function mergeDoc(doc: Partial<MyJobsFile> | MyJob[]): MergeResult {
+  const incoming = Array.isArray(doc) ? doc : doc.jobs;
   if (!Array.isArray(incoming)) throw new Error("That file has no jobs in it.");
+  const theirRemoved = Array.isArray(doc) ? {} : (doc.removed ?? {});
 
-  const existing = read();
-  const byOrigin = new Map(existing.flatMap((j) => (j.origin ? [[originKey(j.origin), j] as const] : [])));
-  const byId = new Map(existing.map((j) => [j.id, j]));
+  const { jobs, removed } = readDoc();
+  const byOrigin = new Map(jobs.flatMap((j) => (j.origin ? [[originKey(j.origin), j] as const] : [])));
+  const byId = new Map(jobs.map((j) => [j.id, j]));
+  const result: MergeResult = { added: 0, updated: 0, removed: 0 };
 
-  let added = 0;
   for (const raw of incoming) {
     if (!raw?.company || !raw?.title) continue;
     const given = Object.fromEntries(Object.entries(raw).filter(([, v]) => v !== undefined)) as Partial<MyJob>;
     const match = (raw.origin && byOrigin.get(originKey(raw.origin))) ?? (raw.id ? byId.get(raw.id) : undefined);
     if (match) {
-      Object.assign(match, given, { id: match.id, created_at: match.created_at, updated_at: now() });
+      if (raw.updated_at && raw.updated_at < match.updated_at) continue;
+      Object.assign(match, given, { id: match.id, created_at: match.created_at, updated_at: raw.updated_at ?? now() });
+      result.updated++;
     } else {
-      existing.push({ ...BLANK, ...given, id: raw.id ?? newId(), created_at: raw.created_at ?? now(), updated_at: now() } as MyJob);
-      added++;
+      const deletedHere = raw.id && removed[raw.id];
+      if (deletedHere && (!raw.updated_at || raw.updated_at < deletedHere)) continue;
+      jobs.push({ ...BLANK, ...given, id: raw.id ?? newId(), created_at: raw.created_at ?? now(), updated_at: raw.updated_at ?? now() } as MyJob);
+      result.added++;
     }
   }
-  write(existing);
-  return added;
+
+  const merged = { ...removed };
+  const keep = jobs.filter((j) => {
+    const at = theirRemoved[j.id];
+    if (at && j.updated_at < at) {
+      result.removed++;
+      return false;
+    }
+    return true;
+  });
+  for (const [id, at] of Object.entries(theirRemoved)) merged[id] = merged[id] && merged[id] > at ? merged[id] : at;
+
+  write(keep, merged);
+  return result;
 }
+
+/** A file from Export, or one an assistant handed back. Returns how many jobs were new. */
+export const importMyJobs = (json: string) => mergeDoc(JSON.parse(json) as MyJobsFile | MyJob[]).added;

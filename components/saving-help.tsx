@@ -25,9 +25,9 @@ export default function SavingHelp({ onClose }: { onClose: () => void }) {
     <section className={`${card} mb-6 p-5 sm:p-6`}>
       <h2 className="text-lg font-semibold">Where your jobs are saved</h2>
       <p className="mt-2 max-w-prose text-base text-soft">
-        Only in this browser. Nothing is sent to a server, so your notes and drafts stay private. They
-        won't show up on another device or survive clearing site data, so use Export to move or back
-        them up.
+        In this browser. Nothing readable is sent to a server, so your notes and drafts stay private.
+        The list won't survive clearing site data, so use Export to back it up, and Sync to keep a
+        second device in step.
       </p>
 
       <dl className="mt-5 space-y-4 text-base">
@@ -41,6 +41,13 @@ export default function SavingHelp({ onClose }: { onClose: () => void }) {
           <dt className="font-semibold">Import</dt>
           <dd className="mt-0.5 max-w-prose text-soft">
             Takes that file back. It merges, so a job you already have is updated rather than duplicated.
+          </dd>
+        </div>
+        <div>
+          <dt className="font-semibold">Sync</dt>
+          <dd className="mt-0.5 max-w-prose text-soft">
+            Links two devices with a code instead of an account. The list is encrypted with the code
+            before it leaves the browser, so the server only stores something it can't read.
           </dd>
         </div>
         <div>

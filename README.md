@@ -46,11 +46,30 @@ under Bun's runtime, so don't run `bun --bun`. The `next` binary runs on Node.
 | --- | --- |
 | Board listings | `data/jobs.db` locally; in memory on Vercel, refilled from the boards on a cold start |
 | My jobs | `localStorage` in each browser; also mirrored into `data/jobs.db` when run locally |
+| Synced copy | Vercel Blob, encrypted in the browser with the sync code (see below) |
 | Ranking profile | `localStorage` |
 
 With no accounts, everyone can share one deployment and keep their own list.
 **Export** and **Import** move a list between devices, or between the deployed and
 local copies. The **?** button on My jobs explains the file format.
+
+## Sync without an account
+
+**Sync** on My jobs creates a 20-character code. Type it into Jobshelf on another
+device and the two lists merge and stay in step: after every change, and whenever
+a tab comes back into view. The code is the only secret:
+
+- The browser derives an AES-256 key from the code (PBKDF2) and encrypts the whole
+  list before upload. The server never sees the code or the plaintext.
+- The storage id is a separate hash of the code, so knowing where a blob lives
+  tells you nothing about the key, and blobs can't be listed.
+- Merging is per job: the newer copy wins, and deletions are remembered for 90
+  days so a removed job doesn't come back from the other device.
+
+The store is a private Vercel Blob bucket. Sync switches itself off when
+`BLOB_READ_WRITE_TOKEN` isn't set, so a local copy works without it (`vercel env
+pull` brings the token in if you want it locally). Losing the code means losing
+the synced copy, but never the list in your browser.
 
 ## Working with an AI assistant
 
@@ -80,6 +99,9 @@ POST /api/lookup    { url } turns a posting link into a prefilled job
 POST /api/refresh   { sources?, rescope? } pulls fresh listings from the boards
 GET  /api/my-jobs   your list, only when running locally
 POST /api/my-jobs   upsert into it by id, only when running locally
+DELETE /api/my-jobs { ids }, only when running locally
+GET  /api/sync      ?id=<sha256> returns the encrypted blob; without id, { available }
+PUT  /api/sync      { id, iv, data } stores one; DELETE { id } removes it
 ```
 
 On jobshelf.app `/api/my-jobs` answers `{ mode: "browser-only" }`: the list is in
@@ -130,7 +152,8 @@ components/     UI: add form, editor, custom select, theme toggle
 lib/db.ts       SQLite schema and queries
 lib/fields.ts   the fields: title words, skills, presets
 lib/score.ts    ranking and location detection
-lib/my-jobs.ts  the browser-side list: add, edit, sort, import/export
+lib/my-jobs.ts  the browser-side list: add, edit, sort, merge, import/export
+lib/sync.ts     encryption and the sync code
 lib/sources/    one adapter per board
 ```
 

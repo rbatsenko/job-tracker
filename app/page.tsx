@@ -7,6 +7,7 @@ import { ScopeTag, StageBar, money, sinceLabel, stageLabel } from "@/components/
 import JobEditor from "@/components/job-editor";
 import SavingHelp from "@/components/saving-help";
 import Select from "@/components/select";
+import SyncPanel from "@/components/sync-panel";
 import { card, primaryButton } from "@/components/styles";
 import { STATUSES } from "@/lib/types";
 import {
@@ -23,6 +24,7 @@ import {
   type MyJob,
   type SortKey,
 } from "@/lib/my-jobs";
+import { push, readSync, syncAvailable, syncNow, type SyncState } from "@/lib/sync";
 
 type Message = { tone: "ok" | "error"; text: string } | null;
 
@@ -48,6 +50,10 @@ export default function MyJobsPage() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showSync, setShowSync] = useState(false);
+  const [syncState, setSyncState] = useState<SyncState | null>(null);
+  const [canSync, setCanSync] = useState(false);
+  const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [sort, setSort] = useState<SortKey>("progress");
   const [q, setQ] = useState("");
   const [stage, setStage] = useState("all");
@@ -57,7 +63,43 @@ export default function MyJobsPage() {
   useEffect(() => {
     setJobs(listMyJobs());
     setReady(true);
+    setSyncState(readSync());
+    syncAvailable().then(setCanSync);
   }, []);
+
+  // A synced browser pulls when the page opens and whenever the tab comes back.
+  useEffect(() => {
+    if (!syncState) return;
+    const run = () => {
+      if (document.visibilityState !== "visible") return;
+      syncNow(syncState.code)
+        .then(() => {
+          setJobs(listMyJobs());
+          setSyncState(readSync());
+        })
+        .catch(() => {});
+    };
+    run();
+    document.addEventListener("visibilitychange", run);
+    return () => document.removeEventListener("visibilitychange", run);
+  }, [syncState?.code]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Uploads shortly after the last change, so typing doesn't upload on every keystroke. */
+  function schedulePush() {
+    const code = readSync()?.code;
+    if (!code) return;
+    if (pushTimer.current) clearTimeout(pushTimer.current);
+    pushTimer.current = setTimeout(() => push(code).then(() => setSyncState(readSync())).catch(() => {}), 800);
+  }
+
+  async function runSync(code: string) {
+    const merged = await syncNow(code);
+    setJobs(listMyJobs());
+    setSyncState(readSync());
+    if (!merged) return "Synced. Nothing was stored under this code before, so it starts from this list.";
+    const parts = [merged.added && `${plural(merged.added, "new job")}`, merged.updated && `${merged.updated} updated`, merged.removed && `${merged.removed} removed`].filter(Boolean);
+    return parts.length ? `Synced: ${parts.join(", ")}.` : "Synced. Both sides already matched.";
+  }
 
   /** Applies a change, re-reads the list, and mirrors it to SQLite when running locally. */
   function sync(change?: () => void, removed?: string) {
@@ -68,6 +110,7 @@ export default function MyJobsPage() {
       const json = { headers: { "Content-Type": "application/json" } };
       fetch("/api/my-jobs", { method: "POST", ...json, body: JSON.stringify({ jobs: next }) }).catch(() => {});
       if (removed) fetch("/api/my-jobs", { method: "DELETE", ...json, body: JSON.stringify({ ids: [removed] }) }).catch(() => {});
+      schedulePush();
     } catch (e) {
       setMessage({ tone: "error", text: e instanceof Error ? e.message : String(e) });
     }
@@ -125,6 +168,18 @@ export default function MyJobsPage() {
             </>
           )}
           <button onClick={() => fileInput.current?.click()} className={toolbarButton}>Import</button>
+          {canSync && (
+            <button
+              onClick={() => {
+                setShowSync((v) => !v);
+                setShowHelp(false);
+              }}
+              aria-expanded={showSync}
+              className={`${toolbarButton} ${syncState ? "text-brand" : ""}`}
+            >
+              {syncState ? "Synced" : "Sync"}
+            </button>
+          )}
           <input
             ref={fileInput}
             type="file"
@@ -137,7 +192,10 @@ export default function MyJobsPage() {
             }}
           />
           <button
-            onClick={() => setShowHelp((v) => !v)}
+            onClick={() => {
+              setShowHelp((v) => !v);
+              setShowSync(false);
+            }}
             aria-expanded={showHelp}
             aria-label="How saving works"
             className={`${toolbarButton} w-11 flex-none`}
@@ -151,8 +209,20 @@ export default function MyJobsPage() {
       </header>
 
       {showHelp && <SavingHelp onClose={() => setShowHelp(false)} />}
+      {showSync && (
+        <SyncPanel
+          state={syncState}
+          available={canSync}
+          onSync={runSync}
+          onChange={() => {
+            setSyncState(readSync());
+            setJobs(listMyJobs());
+          }}
+          onClose={() => setShowSync(false)}
+        />
+      )}
 
-      {!showHelp && jobs.length > 0 && (
+      {!showHelp && !showSync && jobs.length > 0 && (
         <div className="mb-5 space-y-4">
           {jobs.length > 1 && (
             <div className="grid grid-cols-2 gap-2.5 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
@@ -188,8 +258,8 @@ export default function MyJobsPage() {
             </div>
           )}
           <p className="text-sm text-faint">
-            Export saves a file, Import merges one back in, and Copy for AI copies your list with
-            instructions for an assistant.
+            Export saves a file, Import merges one back in, Copy for AI copies your list with
+            instructions for an assistant{canSync ? ", and Sync keeps another device in step" : ""}.
           </p>
         </div>
       )}
