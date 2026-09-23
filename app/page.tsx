@@ -106,7 +106,7 @@ export default function MyJobsPage() {
             onClick={() =>
               guard(() => {
                 void navigator.clipboard.writeText(copyForAssistant());
-                setNotice("Copied. Paste it into Claude — it includes instructions.");
+                setNotice(`Copied ${jobs.length} ${jobs.length === 1 ? "job" : "jobs"} plus instructions — paste it straight into Claude.`);
               })
             }
             className="h-11 flex-1 whitespace-nowrap rounded-field border border-line px-3 text-[0.9375rem] font-medium text-soft transition hover:bg-sunken hover:text-text sm:flex-none sm:px-4 sm:text-base"
@@ -159,6 +159,15 @@ export default function MyJobsPage() {
           </button>
         </div>
       </div>
+
+      {jobs.length > 0 && !showHelp && (
+        <p className="mb-5 text-sm text-faint">
+          <strong className="font-medium text-soft">Export</strong> saves a file ·{" "}
+          <strong className="font-medium text-soft">Import</strong> merges one back in ·{" "}
+          <strong className="font-medium text-soft">Copy for Claude</strong> copies your list
+          with instructions, ready to paste into an assistant
+        </p>
+      )}
 
       {showHelp && (
         <section className="mb-6 rounded-card border border-line bg-raised p-5 shadow-[var(--shadow)] sm:p-6">
