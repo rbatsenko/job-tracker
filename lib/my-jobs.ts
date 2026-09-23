@@ -97,12 +97,73 @@ function write(jobs: MyJob[]): MyJob[] {
   return jobs;
 }
 
-export const listMyJobs = (): MyJob[] =>
-  read().sort(
-    (a, b) =>
-      Number(b.starred) - Number(a.starred) ||
-      (b.updated_at ?? "").localeCompare(a.updated_at ?? ""),
-  );
+export const SORTS = ["progress", "attention", "updated", "company", "salary"] as const;
+export type SortKey = (typeof SORTS)[number];
+
+export const SORT_LABEL: Record<SortKey, string> = {
+  progress: "Furthest along",
+  attention: "Needs a nudge",
+  updated: "Recently updated",
+  company: "Company",
+  salary: "Salary",
+};
+
+/** How far through the search a stage is. Closed ones sink. */
+const STAGE_RANK: Record<string, number> = {
+  offer: 0,
+  interviewing: 1,
+  replied: 2,
+  applied: 3,
+  drafted: 4,
+  shortlist: 5,
+  new: 6,
+  rejected: 7,
+  archived: 8,
+};
+
+const daysSince = (iso: string | null | undefined) =>
+  iso ? (Date.now() - new Date(iso).getTime()) / 86_400_000 : -1;
+
+/** Roughly comparable yearly figure, only for ordering. */
+const yearly = (j: MyJob) => {
+  if (!j.salary_max) return -1;
+  const perYear =
+    j.salary_period === "month" ? j.salary_max * 12 : j.salary_period === "hour" ? j.salary_max * 1800 : j.salary_max;
+  const rate: Record<string, number> = { EUR: 1, USD: 0.92, GBP: 1.17, PLN: 0.23 };
+  return perYear * (rate[j.currency ?? "EUR"] ?? 1);
+};
+
+export function sortMyJobs(jobs: MyJob[], key: SortKey = "progress"): MyJob[] {
+  const list = [...jobs];
+  switch (key) {
+    case "attention":
+      // Live applications that have gone quiet longest, first. Everything not
+      // waiting on someone else drops below, because it needs no chasing.
+      return list.sort((a, b) => {
+        const live = (j: MyJob) => ["applied", "replied", "interviewing"].includes(j.status);
+        if (live(a) !== live(b)) return live(a) ? -1 : 1;
+        const wait = (j: MyJob) => Math.max(daysSince(j.applied_at), daysSince(j.updated_at));
+        return wait(b) - wait(a);
+      });
+    case "updated":
+      return list.sort((a, b) => (b.updated_at ?? "").localeCompare(a.updated_at ?? ""));
+    case "company":
+      return list.sort((a, b) => a.company.localeCompare(b.company));
+    case "salary":
+      return list.sort((a, b) => yearly(b) - yearly(a));
+    case "progress":
+    default:
+      // The point of a tracker: what is furthest along, and starred within that.
+      return list.sort(
+        (a, b) =>
+          (STAGE_RANK[a.status] ?? 9) - (STAGE_RANK[b.status] ?? 9) ||
+          Number(b.starred) - Number(a.starred) ||
+          (b.updated_at ?? "").localeCompare(a.updated_at ?? ""),
+      );
+  }
+}
+
+export const listMyJobs = (key: SortKey = "progress"): MyJob[] => sortMyJobs(read(), key);
 
 export const getMyJob = (id: string): MyJob | undefined =>
   read().find((j) => j.id === id);

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StageBar, StagePicker, ScopeTag, money, sinceLabel } from "@/components/bits";
+import Select from "@/components/select";
 import {
   addMyJob,
   copyForAssistant,
@@ -9,8 +10,12 @@ import {
   importMyJobs,
   listMyJobs,
   removeMyJob,
+  sortMyJobs,
   updateMyJob,
+  SORTS,
+  SORT_LABEL,
   type MyJob,
+  type SortKey,
 } from "@/lib/my-jobs";
 import type { Status } from "@/lib/types";
 
@@ -22,6 +27,7 @@ export default function MyJobsPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
+  const [sort, setSort] = useState<SortKey>("progress");
   const fileRef = useRef<HTMLInputElement>(null);
 
   /** Mirror to SQLite when the app runs somewhere with a real filesystem. */
@@ -159,6 +165,19 @@ export default function MyJobsPage() {
           </button>
         </div>
       </div>
+
+      {jobs.length > 1 && !showHelp && (
+        <div className="mb-5 flex items-center gap-2.5">
+          <span className="shrink-0 text-sm text-faint">Sort by</span>
+          <Select
+            label="Sort my jobs"
+            className="w-56"
+            value={sort}
+            onChange={(v) => setSort(v as SortKey)}
+            options={SORTS.map((k) => ({ value: k, label: SORT_LABEL[k] }))}
+          />
+        </div>
+      )}
 
       {jobs.length > 0 && !showHelp && (
         <p className="mb-5 text-sm text-faint">
@@ -307,7 +326,7 @@ export default function MyJobsPage() {
 
       {jobs.length > 0 && (
         <ul className="overflow-hidden rounded-card border border-line bg-raised shadow-[var(--shadow)]">
-          {jobs.map((j, i) => (
+          {sortMyJobs(jobs, sort).map((j, i) => (
             <li key={j.id} className={i > 0 ? "border-t border-line" : ""}>
               <button
                 onClick={() => setOpenId(openId === j.id ? null : j.id)}
