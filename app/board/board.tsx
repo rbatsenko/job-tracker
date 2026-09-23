@@ -23,8 +23,10 @@ const searchInput =
 type Payload = {
   jobs: Job[];
   facets: { sources: { source: string; n: number }[]; total: number };
-  query: { scored: boolean };
+  query: { scored: boolean; matched: number };
 };
+
+const PAGE = 50;
 
 export default function Board() {
   const [data, setData] = useState<Payload | null>(null);
@@ -36,6 +38,8 @@ export default function Board() {
   const [scope, setScope] = useState("reachable");
   const [source, setSource] = useState("all");
   const [sort, setSort] = useState("newest");
+  // "Show more" only applies to the filters it was pressed under; any change starts from the first page.
+  const [more, setMore] = useState({ key: "", limit: PAGE });
 
   // No profile, no scores. Wait for localStorage before the first fetch so a ranked view never flashes.
   const [profile, setProfile] = useState<ViewerProfile | null>(null);
@@ -50,8 +54,11 @@ export default function Board() {
     setReady(true);
   }, []);
 
+  const filterKey = JSON.stringify([q, scope, source, sort, profile]);
+  const limit = more.key === filterKey ? more.limit : PAGE;
+
   const load = useCallback(async () => {
-    const params = new URLSearchParams({ scope, source, sort, limit: "300" });
+    const params = new URLSearchParams({ scope, source, sort, limit: String(limit) });
     if (q) params.set("q", q);
 
     const res = profile
@@ -63,7 +70,7 @@ export default function Board() {
       : await fetch(`/api/jobs?${params}`, { cache: "no-store" });
 
     setData((await res.json()) as Payload);
-  }, [q, scope, source, sort, profile]);
+  }, [q, scope, source, sort, profile, limit]);
 
   useEffect(() => {
     if (!ready) return;
@@ -115,6 +122,7 @@ export default function Board() {
 
   const scored = Boolean(profile) && Boolean(data?.query?.scored);
   const rows = useMemo(() => data?.jobs ?? [], [data]);
+  const matched = data?.query.matched ?? 0;
 
   return (
     <main className="mx-auto max-w-[1400px] px-4 py-6 sm:px-5 sm:py-8">
@@ -265,7 +273,9 @@ export default function Board() {
             ...(scored ? [{ value: "score", label: "Best fit" }] : []),
           ]}
         />
-        <span className="col-span-2 text-sm text-faint sm:ml-auto">{rows.length} shown</span>
+        <span className="col-span-2 text-sm text-faint sm:ml-auto">
+          {rows.length < matched ? `${rows.length} of ${matched}` : `${matched} ${matched === 1 ? "job" : "jobs"}`}
+        </span>
       </div>
 
       <ul className="overflow-hidden rounded-card border border-line bg-raised shadow-[var(--shadow)]">
@@ -330,6 +340,20 @@ export default function Board() {
           </li>
         )}
       </ul>
+
+      {rows.length < matched && (
+        <div className="mt-5 flex flex-col items-center gap-2">
+          <button
+            onClick={() => setMore({ key: filterKey, limit: limit + PAGE })}
+            className="h-11 rounded-field border border-line px-5 text-base font-medium text-soft transition hover:bg-sunken hover:text-text"
+          >
+            Show {Math.min(PAGE, matched - rows.length)} more
+          </button>
+          <span className="text-sm text-faint">
+            {rows.length} of {matched} shown
+          </span>
+        </div>
+      )}
     </main>
   );
 }

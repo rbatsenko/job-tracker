@@ -70,7 +70,7 @@ The pages talk to a few JSON endpoints, and an assistant can use the same ones
 to search the board or fill in a job from a link.
 
 ```
-GET  /api/jobs      search the board: q, scope, source, sort, limit (25), full=1
+GET  /api/jobs      search the board: q, scope, source, sort, limit (25), offset, full=1
                     add profile=engineering|design to get a ranking
 POST /api/jobs      same, with a custom { profile } in the body
 POST /api/lookup    { url } turns a posting link into a prefilled job

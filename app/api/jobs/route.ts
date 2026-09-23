@@ -24,12 +24,13 @@ function readFilter(sp: URLSearchParams): JobFilter {
     profile: sp.get("profile") ?? undefined,
     minScore: num("minScore"),
     limit: num("limit"),
+    offset: num("offset"),
     full: sp.get("full") === "1",
   };
 }
 
 function respond(filter: JobFilter) {
-  const jobs = listJobs(filter);
+  const { jobs, matched } = listJobs(filter);
   return Response.json({
     jobs,
     facets: facets(),
@@ -38,7 +39,9 @@ function respond(filter: JobFilter) {
       profile: typeof filter.profile === "object" ? "custom" : (filter.profile ?? null),
       scored: Boolean(filter.profile),
       limit: filter.limit ?? 25,
+      offset: filter.offset ?? 0,
       returned: jobs.length,
+      matched,
     },
   });
 }

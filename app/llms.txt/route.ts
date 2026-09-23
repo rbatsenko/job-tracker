@@ -57,6 +57,7 @@ GET ${base}/api/jobs
   profile    engineering | design. Without it nothing is scored and fit_score is 0
   minScore   0-100, only with a profile
   limit      default 25, max 1000
+  offset     skip that many; the response's query.matched says how many match in total
   full=1     whole descriptions instead of the first 280 characters
 
 POST ${base}/api/jobs with { "profile": { "basedOn": "design", "reach": { "regions": ["eu"],

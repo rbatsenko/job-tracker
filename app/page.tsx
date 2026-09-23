@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import AddJobForm from "@/components/add-job-form";
-import { ScopeTag, StageBar, money, sinceLabel } from "@/components/bits";
+import { ScopeTag, StageBar, money, sinceLabel, stageLabel } from "@/components/bits";
 import JobEditor from "@/components/job-editor";
 import SavingHelp from "@/components/saving-help";
 import Select from "@/components/select";
 import { card, primaryButton } from "@/components/styles";
+import { STATUSES } from "@/lib/types";
 import {
   SORTS,
   SORT_LABEL,
@@ -24,6 +25,9 @@ import {
 } from "@/lib/my-jobs";
 
 type Message = { tone: "ok" | "error"; text: string } | null;
+
+const searchInput =
+  "h-11 w-full rounded-field border border-line bg-raised px-3.5 text-base outline-none focus:border-brand sm:w-64";
 
 const toolbarButton =
   "h-11 flex-1 whitespace-nowrap rounded-field border border-line px-3 text-[0.9375rem] font-medium text-soft transition hover:bg-sunken hover:text-text sm:flex-none sm:px-4 sm:text-base";
@@ -45,6 +49,8 @@ export default function MyJobsPage() {
   const [adding, setAdding] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [sort, setSort] = useState<SortKey>("progress");
+  const [q, setQ] = useState("");
+  const [stage, setStage] = useState("all");
   const [message, setMessage] = useState<Message>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -83,6 +89,17 @@ export default function MyJobsPage() {
     await navigator.clipboard.writeText(copyForAssistant());
     setMessage({ tone: "ok", text: `Copied ${plural(jobs.length, "job")} with instructions. Paste it into ChatGPT, Claude or any assistant.` });
   }
+
+  const needle = q.trim().toLowerCase();
+  const shown = sortMyJobs(
+    jobs.filter(
+      (j) =>
+        (stage === "all" || j.status === stage) &&
+        (!needle || `${j.company} ${j.title} ${j.location ?? ""}`.toLowerCase().includes(needle)),
+    ),
+    sort,
+  );
+  const filtering = needle !== "" || stage !== "all";
 
   const applied = jobs.filter((j) => j.status === "applied").length;
   const interviewing = jobs.filter((j) => j.status === "interviewing").length;
@@ -132,15 +149,36 @@ export default function MyJobsPage() {
       {!showHelp && jobs.length > 0 && (
         <div className="mb-5 space-y-4">
           {jobs.length > 1 && (
-            <div className="flex items-center gap-2.5">
-              <span className="shrink-0 text-sm text-faint">Sort by</span>
+            <div className="grid grid-cols-2 gap-2.5 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Search company or role"
+                aria-label="Search my jobs"
+                className={`${searchInput} col-span-2`}
+              />
               <Select
-                label="Sort my jobs"
-                className="w-56"
+                label="Stage"
+                className="w-full sm:w-44"
+                value={stage}
+                onChange={setStage}
+                options={[
+                  { value: "all", label: "All stages" },
+                  ...STATUSES.map((s) => ({ value: s, label: stageLabel(s) })),
+                ]}
+              />
+              <Select
+                label="Sort"
+                className="w-full sm:w-48"
                 value={sort}
                 onChange={(v) => setSort(v as SortKey)}
                 options={SORTS.map((k) => ({ value: k, label: SORT_LABEL[k] }))}
               />
+              {filtering && (
+                <span className="col-span-2 text-sm text-faint sm:ml-auto">
+                  {shown.length} of {jobs.length}
+                </span>
+              )}
             </div>
           )}
           <p className="text-sm text-faint">
@@ -193,7 +231,7 @@ export default function MyJobsPage() {
 
       {jobs.length > 0 && (
         <ul className={`${card} overflow-hidden`}>
-          {sortMyJobs(jobs, sort).map((job, i) => (
+          {shown.map((job, i) => (
             <li key={job.id} className={i ? "border-t border-line" : ""}>
               <button
                 onClick={() => setOpenId(openId === job.id ? null : job.id)}
@@ -226,6 +264,9 @@ export default function MyJobsPage() {
               )}
             </li>
           ))}
+          {!shown.length && (
+            <li className="p-10 text-center text-base text-soft">Nothing matches. Clear the search or pick another stage.</li>
+          )}
         </ul>
       )}
     </main>

@@ -142,10 +142,12 @@ export type JobFilter = {
   profile?: string | object;
   minScore?: number;
   limit?: number;
+  offset?: number;
   full?: boolean;
 };
 
-export function listJobs(f: JobFilter = {}): Job[] {
+/** `matched` is the count before limit and offset, so a caller can page through the rest. */
+export function listJobs(f: JobFilter = {}): { jobs: Job[]; matched: number } {
   const where: string[] = [];
   const params: Record<string, unknown> = {};
 
@@ -181,10 +183,12 @@ export function listJobs(f: JobFilter = {}): Job[] {
   }
 
   const limit = Math.min(Math.max(f.limit ?? 25, 1), 1000);
-  return jobs.slice(0, limit).map((j) => ({
+  const offset = Math.max(f.offset ?? 0, 0);
+  const page = jobs.slice(offset, offset + limit).map((j) => ({
     ...j,
     description: f.full || !j.description ? j.description : j.description.slice(0, 280),
   }));
+  return { jobs: page, matched: jobs.length };
 }
 
 export function facets() {
