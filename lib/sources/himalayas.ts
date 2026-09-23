@@ -22,10 +22,7 @@ type Row = {
 export async function fetchHimalayas(): Promise<IncomingJob[]> {
   const out: IncomingJob[] = [];
 
-  // The feed caps a page at 20 rows whatever limit you ask for, and its own
-  // response says offset is deprecated in favour of a cursor. Paging by
-  // offset=0,100 therefore read rows 0-19, skipped 20-99 entirely, and asked
-  // for a second page that no longer exists.
+  // Pages are capped at 20 rows regardless of `limit`; offset paging is deprecated.
   let cursor: string | undefined;
   for (let page = 0; page < 20; page++) {
     const data = await getJSON<{ jobs: Row[]; nextCursor?: string }>(
@@ -34,7 +31,6 @@ export async function fetchHimalayas(): Promise<IncomingJob[]> {
     if (!data.jobs?.length) break;
     for (const r of data.jobs) {
       const restrictions = r.locationRestrictions ?? [];
-      // No restrictions listed on Himalayas means genuinely worldwide.
       const scope: Scope = restrictions.length
         ? inferScope(restrictions.join(", "))
         : "worldwide";

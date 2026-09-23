@@ -6,6 +6,7 @@ import Select from "@/components/select";
 import { ScopeTag, money } from "@/components/bits";
 import { COUNTRY_OPTIONS } from "@/lib/countries";
 import { addFromBoard, trackedOrigins } from "@/lib/my-jobs";
+import { SOURCE_INFO, sourceName } from "@/lib/sources/info";
 import {
   BLANK_PROFILE,
   clearProfile,
@@ -16,15 +17,14 @@ import {
 } from "@/lib/viewer-profile";
 import type { Job } from "@/lib/types";
 
+const searchInput =
+  "h-11 rounded-field border border-line bg-raised px-3.5 text-base outline-none focus:border-brand";
+
 type Payload = {
   jobs: Job[];
   facets: { sources: { source: string; n: number }[]; total: number };
   query: { scored: boolean };
 };
-
-const control =
-  "h-11 rounded-field border border-line bg-raised px-3.5 text-base outline-none focus:border-brand";
-
 
 export default function Board() {
   const [data, setData] = useState<Payload | null>(null);
@@ -37,8 +37,7 @@ export default function Board() {
   const [source, setSource] = useState("all");
   const [sort, setSort] = useState("newest");
 
-  // No profile means no scores. Held until localStorage has been read, so a
-  // ranked view never flashes past someone who has not asked for one.
+  // No profile, no scores. Wait for localStorage before the first fetch so a ranked view never flashes.
   const [profile, setProfile] = useState<ViewerProfile | null>(null);
   const [ready, setReady] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -123,7 +122,7 @@ export default function Board() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Find jobs</h1>
           <p className="mt-1.5 text-base text-soft">
-            {data ? `${data.facets.total} listings pulled from 11 boards` : " "}
+            {data ? `${data.facets.total} remote listings from ${Object.keys(SOURCE_INFO).length} job boards` : " "}
           </p>
         </div>
         <div className="flex w-full items-center gap-3 sm:w-auto">
@@ -161,8 +160,6 @@ export default function Board() {
         <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
           <span className="text-sm text-faint">Rank for</span>
 
-          {/* One click to a useful ranking. The form is there for anyone who
-              wants to be specific, but it should never be the only way in. */}
           <div role="radiogroup" aria-label="Rank jobs for" className="flex gap-0.5 rounded-field border border-line bg-sunken p-1">
             <button
               role="radio"
@@ -184,7 +181,6 @@ export default function Board() {
                 role="radio"
                 aria-checked={profile?.basedOn === k}
                 onClick={() => {
-                  // Keep whatever else they have already set.
                   const next: ViewerProfile = {
                     ...(profile ?? BLANK_PROFILE),
                     basedOn: k,
@@ -227,7 +223,7 @@ export default function Board() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search company, role, stack"
-          className={`${control} col-span-2 sm:w-72`}
+          className={`${searchInput} col-span-2 sm:w-72`}
           aria-label="Search"
         />
         <Select
@@ -253,7 +249,7 @@ export default function Board() {
             { value: "all", label: "All boards" },
             ...(data?.facets.sources ?? []).map((s) => ({
               value: s.source,
-              label: s.source,
+              label: sourceName(s.source),
               hint: String(s.n),
             })),
           ]}
@@ -299,7 +295,7 @@ export default function Board() {
               <a
                 href={j.url}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener"
                 className={`group min-w-0 flex-1 ${scored ? "basis-[calc(100%-4rem)]" : "basis-full"} sm:basis-auto`}
               >
                 <span className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
@@ -310,7 +306,7 @@ export default function Board() {
                   <ScopeTag scope={j.remote_scope} />
                   {money(j) && <span className="text-soft">{money(j)}</span>}
                   <span className="truncate">{j.location}</span>
-                  <span>{j.source}</span>
+                  <span>via {sourceName(j.source)}</span>
                 </span>
               </a>
 

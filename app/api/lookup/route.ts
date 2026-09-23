@@ -5,12 +5,8 @@ export const runtime = "nodejs";
 export const maxDuration = 30;
 
 /**
- * Turns a job link into filled-in fields.
- *
- * Most listings arrive as a URL — a friend's message, a careers page — and
- * retyping the company, title and location off a page is the most tedious part
- * of tracking anything. The big applicant systems all publish the posting as
- * JSON; for everything else, many pages carry a schema.org JobPosting.
+ * Turns a pasted job link into form fields: Greenhouse, Lever and Ashby through their
+ * public posting APIs, Traffit from its markup, anything else via schema.org JobPosting.
  */
 
 type Found = {
@@ -37,7 +33,7 @@ const get = (url: string, json = true) =>
     cache: "no-store",
   });
 
-/** This endpoint fetches a URL the caller chose, so keep it off the local network. */
+/** The caller chooses the URL, so refuse anything on a local or private network. */
 function safe(raw: string): URL | null {
   let u: URL;
   try {
@@ -163,11 +159,7 @@ async function ashby(u: URL): Promise<Found | null> {
   };
 }
 
-/**
- * Traffit — a Polish applicant system, widely used here. No JSON-LD and no
- * public API, but the posting is server-rendered: the title is in og:title and
- * the employer is the subdomain, which is enough to save the retyping.
- */
+/** Traffit has no API or JSON-LD, but renders og:title, and the subdomain is the employer. */
 async function traffit(u: URL): Promise<Found | null> {
   const res = await get(u.toString(), false);
   if (!res.ok) return null;
@@ -182,12 +174,9 @@ async function traffit(u: URL): Promise<Found | null> {
 
   const company = u.hostname.split(".")[0];
   const remote = /remote_status\.remote/.test(html);
-  const published = pick(/published_on[^0-9]*(\d{2})\/(\d{2})\/(\d{4})/)
-    ? html.match(/published_on[^0-9]*(\d{2})\/(\d{2})\/(\d{4})/)
-    : null;
+  const published = html.match(/published_on[^0-9]*(\d{2})\/(\d{2})\/(\d{4})/);
 
   return {
-    // Subdomains are lowercase; capitalise so it reads like a company name.
     company: company.charAt(0).toUpperCase() + company.slice(1),
     title,
     location: remote ? "Remote" : null,
@@ -212,7 +201,6 @@ export async function POST(request: Request) {
     else if (host.endsWith("ashbyhq.com")) found = await ashby(u);
     else if (host.endsWith("traffit.com")) found = await traffit(u);
 
-    // Anything else, and anything the above could not place: read the page.
     if (!found) {
       const res = await get(u.toString(), false);
       if (res.ok) found = fromJsonLd(await res.text(), u.toString());
@@ -220,11 +208,7 @@ export async function POST(request: Request) {
 
     if (!found?.title) {
       return Response.json(
-        {
-          error:
-            "Could not read that page. Fill the fields in by hand — the link is saved either way.",
-          url: u.toString(),
-        },
+        { error: "Could not read that page. Fill the fields in by hand.", url: u.toString() },
         { status: 422 },
       );
     }

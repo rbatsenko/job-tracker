@@ -1,17 +1,11 @@
 node_modules/
 .next/
 out/
-data/*.db
-data/*.db-journal
-data/*.db-wal
-data/*.db-shm
+.vercel
+.env*
 .DS_Store
 *.tsbuildinfo
 next-env.d.ts
 
-# Your own application drafts, notes and exported job lists — personal.
-# Everything under data/ is yours except the example, which is the format doc.
+# Local database, exports and drafts are personal.
 data/*
-!data/seed-drafts.example.md
-.vercel
-.env*

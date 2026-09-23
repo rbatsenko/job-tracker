@@ -1,12 +1,4 @@
-"use client";
-
-/**
- * The viewer's own ranking preferences.
- *
- * Absent by default, and that is the point: without one the board shows no
- * scores at all. A ranking built from somebody else's career is worse than no
- * ranking, because it looks authoritative.
- */
+/** The viewer's ranking preferences. Absent by default, so the board shows no scores. */
 
 const KEY = "job-tracker:profile:v2";
 
@@ -40,9 +32,7 @@ export function readProfile(): ViewerProfile | null {
 export function saveProfile(p: ViewerProfile) {
   try {
     window.localStorage.setItem(KEY, JSON.stringify(p));
-  } catch {
-    // Blocked storage just means the ranking does not persist.
-  }
+  } catch {}
 }
 
 export function clearProfile() {

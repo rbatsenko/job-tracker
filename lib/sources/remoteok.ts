@@ -1,6 +1,6 @@
 import { inferScope } from "../score";
 import type { IncomingJob } from "../types";
-import { getJSON, isRelevant, parseSalaryText, stripHtml } from "./util";
+import { getJSON, isRelevant, stripHtml } from "./util";
 
 type Row = {
   id?: string;
@@ -14,7 +14,6 @@ type Row = {
   date?: string;
   salary_min?: number;
   salary_max?: number;
-  legal?: string;
 };
 
 export async function fetchRemoteOK(): Promise<IncomingJob[]> {

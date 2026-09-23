@@ -1,14 +1,6 @@
 @import "tailwindcss";
 
-/*
- * Two themes, both first-class. Colours are CSS variables that flip on
- * :root[data-theme], and @theme maps them into Tailwind utilities so the same
- * class works in either theme.
- *
- * The nine pipeline stages are deliberately NOT nine hues — a rainbow of pills
- * is unreadable. Stage reads from position in a stepper plus its label; colour
- * only marks the three outcomes that matter (live, won, closed).
- */
+/* Colours are CSS variables flipped by :root[data-theme] and exposed to Tailwind via @theme. */
 
 :root {
   --bg: #fbf9f7;
@@ -79,7 +71,6 @@
   --color-closed: var(--closed);
   --color-quiet: var(--quiet);
 
-  /* Bigger by default: base is 16px and the scale is a comfortable 1.2. */
   --text-xs: 0.8125rem;
   --text-sm: 0.9375rem;
   --text-base: 1rem;
@@ -98,7 +89,6 @@ html, body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* One visible focus treatment everywhere, keyboard users included. */
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;

@@ -15,7 +15,6 @@ type Row = {
   created_at?: number;
 };
 
-/** Mostly Europe (DE-heavy), which is exactly the useful part here. */
 export async function fetchArbeitnow(): Promise<IncomingJob[]> {
   const out: IncomingJob[] = [];
   for (let page = 1; page <= 3; page++) {
@@ -32,7 +31,7 @@ export async function fetchArbeitnow(): Promise<IncomingJob[]> {
         company: r.company_name,
         title: r.title,
         location: r.location || "Europe",
-        // Arbeitnow is an EU board; a remote listing there reaches Poland.
+        // A European board, so a remote listing without a location is remote in Europe.
         remote_scope: inferScope(`${r.location ?? ""} europe remote`),
         tags: [...(r.tags ?? []), ...(r.job_types ?? [])],
         description: stripHtml(r.description),

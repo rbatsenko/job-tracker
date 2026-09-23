@@ -24,16 +24,7 @@ type Props = {
   id?: string;
 };
 
-/**
- * A select that matches the rest of the interface, because a native one does
- * not — and because a 64-item country list in a native dropdown is miserable
- * on a phone.
- *
- * Follows the ARIA combobox pattern rather than approximating it: the trigger
- * owns the listbox, the active option is announced through aria-activedescendant,
- * and every keyboard interaction a native select supports works here — arrows,
- * Home and End, Escape, Enter, and type-ahead.
- */
+/** A styled select following the ARIA combobox pattern, with keyboard support and type-ahead. */
 export default function Select({
   value,
   onChange,
@@ -68,7 +59,6 @@ export default function Select({
 
   const selected = options.find((o) => o.value === value);
 
-  // Group in the order groups first appear, so the caller controls ordering.
   const grouped = useMemo(() => {
     const out: { group?: string; items: Option[] }[] = [];
     for (const o of shown) {
@@ -100,7 +90,6 @@ export default function Select({
     if (withSearch) requestAnimationFrame(() => searchRef.current?.focus());
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Keep the highlighted option in view when arrowing through a long list.
   useEffect(() => {
     if (!open) return;
     listRef.current
@@ -152,7 +141,7 @@ export default function Select({
         setOpen(false);
         break;
       default: {
-        // Type-ahead, the way a native select behaves.
+        // Type-ahead
         if (withSearch || e.key.length !== 1) return;
         const now = Date.now();
         const t = typeahead.current;

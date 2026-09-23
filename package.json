@@ -7,8 +7,7 @@
     "dev": "next dev -p 4321",
     "build": "next build",
     "start": "next start -p 4321",
-    "refresh": "node --experimental-strip-types scripts/refresh.ts",
-    "lint": "next lint"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "better-sqlite3": "13.0.3",

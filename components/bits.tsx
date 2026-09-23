@@ -4,98 +4,69 @@ import Select from "./select";
 import { countryName } from "@/lib/countries";
 import { STATUSES, type Status } from "@/lib/types";
 
-/** Where each stage sits in the search, and what it means for the outcome. */
-export const STAGE_ORDER: Status[] = [
-  "shortlist",
-  "drafted",
-  "applied",
-  "replied",
-  "interviewing",
-  "offer",
-];
+const PIPELINE: Status[] = ["shortlist", "drafted", "applied", "replied", "interviewing", "offer"];
 
-/** Statuses are stored lowercase; they are only ever shown capitalised. */
+type Tone = "live" | "won" | "closed" | "quiet";
+
+const TONE: Record<Status, Tone> = {
+  new: "quiet",
+  shortlist: "live",
+  drafted: "live",
+  applied: "live",
+  replied: "live",
+  interviewing: "live",
+  offer: "won",
+  rejected: "closed",
+  archived: "quiet",
+};
+
+const TONE_STYLE: Record<Tone, { bar: string; text: string; swatch: string }> = {
+  live: { bar: "bg-live", text: "text-text", swatch: "var(--live)" },
+  won: { bar: "bg-won", text: "text-won", swatch: "var(--won)" },
+  closed: { bar: "bg-closed", text: "text-closed", swatch: "var(--closed)" },
+  quiet: { bar: "bg-quiet", text: "text-faint", swatch: "var(--quiet)" },
+};
+
 export const stageLabel = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-export const stageTone = (s: Status) =>
-  s === "offer" ? "won" : s === "rejected" ? "closed" : s === "archived" || s === "new" ? "quiet" : "live";
-
-/**
- * Stage shown as progress, not as one of nine colours: how far along, plus the
- * word. Readable without seeing colour at all.
- */
+/** Progress plus a word, so the stage reads without relying on colour. */
 export function StageBar({ status }: { status: Status }) {
-  const tone = stageTone(status);
-  const idx = STAGE_ORDER.indexOf(status);
-  const done = idx >= 0 ? idx + 1 : 0;
-  const colour =
-    tone === "won" ? "bg-won" : tone === "closed" ? "bg-closed" : tone === "quiet" ? "bg-quiet" : "bg-live";
+  const style = TONE_STYLE[TONE[status]];
+  const filled = PIPELINE.indexOf(status) + 1;
 
   return (
     <span className="flex items-center gap-2.5">
       <span className="flex gap-[3px]" aria-hidden>
-        {STAGE_ORDER.map((_, i) => (
-          <span
-            key={i}
-            className={`h-1.5 w-4 rounded-full ${
-              status === "rejected" || status === "archived"
-                ? "bg-line"
-                : i < done
-                  ? colour
-                  : "bg-line"
-            }`}
-          />
+        {PIPELINE.map((stage, i) => (
+          <span key={stage} className={`h-1.5 w-4 rounded-full ${i < filled ? style.bar : "bg-line"}`} />
         ))}
       </span>
-      <span
-        className={`text-sm font-medium ${
-          tone === "won" ? "text-won" : tone === "closed" ? "text-closed" : tone === "quiet" ? "text-faint" : "text-text"
-        }`}
-      >
-        {stageLabel(status)}
-      </span>
+      <span className={`text-sm font-medium ${style.text}`}>{stageLabel(status)}</span>
     </span>
   );
 }
 
-const STAGE_SWATCH: Record<string, string> = {
-  new: "var(--quiet)",
-  shortlist: "var(--live)",
-  drafted: "var(--live)",
-  applied: "var(--live)",
-  replied: "var(--live)",
-  interviewing: "var(--live)",
-  offer: "var(--won)",
-  rejected: "var(--closed)",
-  archived: "var(--quiet)",
-};
-
 export function StagePicker({
+  id,
   value,
   onChange,
-  className,
-  id,
 }: {
+  id?: string;
   value: Status;
   onChange: (s: Status) => void;
-  className?: string;
-  id?: string;
 }) {
   return (
     <Select
-      label="Stage"
       id={id}
-      className={className}
+      label="Stage"
       value={value}
       onChange={(v) => onChange(v as Status)}
-      options={STATUSES.map((s) => ({
-        value: s,
-        label: stageLabel(s),
-        swatch: STAGE_SWATCH[s],
-      }))}
+      options={STATUSES.map((s) => ({ value: s, label: stageLabel(s), swatch: TONE_STYLE[TONE[s]].swatch }))}
     />
   );
 }
+
+const SYMBOL: Record<string, string> = { EUR: "€", GBP: "£", USD: "$" };
 
 export function money(j: {
   salary_min?: number | null;
@@ -104,16 +75,15 @@ export function money(j: {
   salary_period?: string | null;
 }) {
   if (!j.salary_max) return null;
-  const sym = j.currency === "EUR" ? "€" : j.currency === "GBP" ? "£" : j.currency === "PLN" ? "" : "$";
-  const suffix = j.currency === "PLN" ? " PLN" : "";
-  const per = j.salary_period === "month" ? "/mo" : j.salary_period === "hour" ? "/h" : "";
-  const k = (n: number) =>
-    n >= 10_000 && j.salary_period !== "month" ? `${Math.round(n / 1000)}K` : n.toLocaleString();
-  const lo = j.salary_min && j.salary_min !== j.salary_max ? `${k(j.salary_min)}–` : "";
-  return `${sym}${lo}${k(j.salary_max)}${suffix}${per}`;
+  const monthly = j.salary_period === "month";
+  const short = (n: number) => (n >= 10_000 && !monthly ? `${Math.round(n / 1000)}K` : n.toLocaleString());
+  const range = j.salary_min && j.salary_min !== j.salary_max ? `${short(j.salary_min)}–${short(j.salary_max)}` : short(j.salary_max);
+  const per = monthly ? "/mo" : j.salary_period === "hour" ? "/h" : "";
+  const symbol = SYMBOL[j.currency ?? "USD"];
+  return symbol ? `${symbol}${range}${per}` : `${range} ${j.currency}${per}`;
 }
 
-const FIXED: Record<string, string> = {
+const SCOPE_LABEL: Record<string, string> = {
   worldwide: "Remote worldwide",
   eu: "Remote in Europe",
   us: "US only",
@@ -121,14 +91,14 @@ const FIXED: Record<string, string> = {
   unknown: "Location not stated",
 };
 
-export const scopeLabel = (scope: string) => FIXED[scope] ?? countryName(scope);
+export const scopeLabel = (scope: string) => SCOPE_LABEL[scope] ?? countryName(scope);
 
 export function ScopeTag({ scope }: { scope: string }) {
-  const bad = scope === "us" || scope === "other";
+  const outOfReach = scope === "us" || scope === "other";
   return (
     <span
       className={`inline-flex h-7 items-center rounded-md px-2.5 text-sm ${
-        bad ? "bg-sunken text-faint" : "bg-brand-soft text-brand"
+        outOfReach ? "bg-sunken text-faint" : "bg-brand-soft text-brand"
       }`}
     >
       {scopeLabel(scope)}
@@ -138,14 +108,7 @@ export function ScopeTag({ scope }: { scope: string }) {
 
 const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 
-/**
- * How long a job has been waiting, which is the thing that actually stings.
- *
- * Counts calendar days in the viewer's own timezone, not elapsed 24-hour
- * periods: something you applied to yesterday evening should say "yesterday"
- * this morning, not "today". Rounding absorbs the 23- and 25-hour days that
- * daylight saving produces.
- */
+/** Calendar days in the viewer's timezone, so last night reads "yesterday" this morning. */
 export function sinceLabel(iso: string | null | undefined) {
   if (!iso) return null;
   const then = new Date(iso);
@@ -156,7 +119,6 @@ export function sinceLabel(iso: string | null | undefined) {
   if (days === 0) return "today";
   if (days === 1) return "yesterday";
   if (days < 30) return `${days} days ago`;
-
   const months = Math.max(1, Math.round(days / 30.44));
   return `${months} month${months > 1 ? "s" : ""} ago`;
 }

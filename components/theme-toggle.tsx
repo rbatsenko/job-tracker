@@ -10,7 +10,6 @@ const apply = (t: Theme) => {
   document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
 };
 
-/** Three states, because "follow system" is what most people actually want. */
 export default function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>("system");
 
@@ -18,7 +17,6 @@ export default function ThemeToggle() {
     const stored = (localStorage.getItem(KEY) as Theme) ?? "system";
     setTheme(stored);
 
-    // Keep following the OS while the tab is open, if that is the choice.
     const mq = matchMedia("(prefers-color-scheme: dark)");
     const onChange = () => {
       if ((localStorage.getItem(KEY) as Theme) === "system") apply("system");

@@ -25,27 +25,20 @@ const num = (v: unknown) => {
   return Number.isFinite(n) && n > 0 ? n : null;
 };
 
-// Jobicy files design under "design-multimedia"; plain "design" returns nothing.
+// Design lives under "design-multimedia"; plain "design" returns nothing.
 const INDUSTRIES = ["engineering", "design-multimedia"];
 
 export async function fetchJobicy(): Promise<IncomingJob[]> {
   const batches = await Promise.all(
     INDUSTRIES.map((industry) =>
-      getJSON<{ jobs: Row[] }>(
-        `https://jobicy.com/api/v2/remote-jobs?count=100&industry=${industry}`,
-      ).catch(() => ({ jobs: [] as Row[] })),
+      getJSON<{ jobs: Row[] }>(`https://jobicy.com/api/v2/remote-jobs?count=100&industry=${industry}`)
+        .then((d) => d.jobs ?? [])
+        .catch(() => []),
     ),
   );
-  const seen = new Set<string>();
-  const data = {
-    jobs: batches.flatMap((b) => b.jobs ?? []).filter((r) => {
-      const id = String(r.id);
-      if (seen.has(id)) return false;
-      seen.add(id);
-      return true;
-    }),
-  };
-  return (data.jobs ?? [])
+  const unique = [...new Map(batches.flat().map((r) => [String(r.id), r])).values()];
+
+  return unique
     .map<IncomingJob>((r) => ({
       source: "jobicy",
       external_id: String(r.id),

@@ -6,14 +6,11 @@ import "./globals.css";
 const figtree = Figtree({ subsets: ["latin"], variable: "--font-figtree", display: "swap" });
 
 export const metadata: Metadata = {
-  title: "Job Tracker",
+  title: { default: "Jobshelf", template: "%s · Jobshelf" },
   description: "Track the jobs you are actually pursuing, and find new ones.",
 };
 
-/**
- * Resolves the theme before first paint. Without this the page renders in the
- * default theme and then corrects itself, which is the flash everyone notices.
- */
+// Sets the theme before first paint so there is no flash.
 const themeScript = `(function(){try{
 var stored=localStorage.getItem('job-tracker:theme')||'system';
 var dark=stored==='dark'||(stored==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);

@@ -1,12 +1,6 @@
-/**
- * Countries the scorer can recognise in a listing, and the ones a viewer can
- * pick from. Poland used to be the only country in the model, because that is
- * where this was written — which made every other country "other".
- */
-
 export type Country = { code: string; name: string; eu: boolean; hints?: string[] };
 
-/** `eu` means EU/EEA/CH for the purposes of "can I work in Europe". */
+/** `eu` covers EU, EEA and Switzerland — "can I work there from Europe". */
 export const COUNTRIES: Country[] = [
   { code: "at", name: "Austria", eu: true, hints: ["vienna"] },
   { code: "be", name: "Belgium", eu: true, hints: ["brussels"] },
@@ -78,13 +72,11 @@ export const EU_CODES = new Set(COUNTRIES.filter((c) => c.eu).map((c) => c.code)
 
 export const countryName = (code: string) => BY_CODE.get(code)?.name ?? code.toUpperCase();
 
-/** Sorted for a picker. */
 export const COUNTRY_OPTIONS = [...COUNTRIES].sort((a, b) => a.name.localeCompare(b.name));
 
 /**
- * Finds a country in free text. Names and city hints are matched as words;
- * bare two-letter codes only in short strings and only uppercase, because
- * lowercasing turns IT, NO, IS, BE and AT into ordinary English words.
+ * Finds a country by name or city. Bare codes only count uppercase and in short
+ * strings, otherwise IT, NO, IS, BE and AT match ordinary English words.
  */
 export function detectCountry(text: string): string | null {
   const lower = text.toLowerCase();

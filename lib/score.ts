@@ -2,161 +2,96 @@ import { EU_CODES, countryName, detectCountry } from "./countries";
 import { getProfile, resolveProfile, type Profile } from "./profile";
 import type { IncomingJob, Scope } from "./types";
 
-/** Talent marketplaces that repost the same listings across every board. */
 const AGENCIES = [
-  "lemon.io",
-  "proxify",
-  "toptal",
-  "turing",
-  "andela",
-  "crossover",
-  "x-team",
-  "gun.io",
-  "arc.dev",
-  "upstaff",
-  "deel",
-  "remotemore",
-  "strider",
+  "lemon.io", "proxify", "toptal", "turing", "andela", "crossover", "x-team",
+  "gun.io", "arc.dev", "upstaff", "deel", "remotemore", "strider",
 ];
 
-const has = (haystack: string, needles: readonly string[]) =>
+const SENIORITY = ["senior", "staff", "lead", "principal", "head of"];
+const TO_EUR: Record<string, number> = { EUR: 1, USD: 0.92, GBP: 1.17, PLN: 0.23 };
+
+const matches = (haystack: string, needles: readonly string[]) =>
   needles.filter((n) => haystack.includes(n));
 
-/**
- * Scores a job 0-100 from Kraków. Geography dominates on purpose: a perfect
- * role that can only be done from California is worth less than a good one
- * that is actually open to him.
- */
-export function scoreJob(
-  job: IncomingJob,
-  profileOrKey?: string | null | object,
-): { score: number; reasons: string[] } {
-  const PROFILE: Profile =
-    typeof profileOrKey === "object" && profileOrKey !== null
-      ? resolveProfile(profileOrKey)
-      : getProfile(profileOrKey as string | null | undefined);
+function geography(scope: string, { regions, canWorkUS, willRelocate }: Profile["reach"]) {
+  const worldwide = regions.includes("worldwide");
+  const europe = regions.includes("eu") || regions.some((r) => EU_CODES.has(r));
+
+  if (scope === "worldwide") return { points: 22, reason: "Remote worldwide" };
+  if (scope === "us")
+    return canWorkUS
+      ? { points: 20, reason: "United States, which works for you" }
+      : { points: -35, reason: "US-only — likely a dead end" };
+  if (scope === "eu") return { points: europe ? 20 : worldwide ? 4 : -8, reason: europe ? "Remote across Europe" : null };
+  if (scope === "other")
+    return { points: willRelocate ? 4 : -12, reason: willRelocate ? null : "On-site, outside where you work" };
+  // Not stated isn't the same as ruled out.
+  if (scope === "unknown") return { points: worldwide ? 6 : 2, reason: null };
+  if (regions.includes(scope)) return { points: 20, reason: `In ${countryName(scope)}, where you can work` };
+  if (europe && EU_CODES.has(scope)) return { points: 16, reason: `In ${countryName(scope)}, inside Europe` };
+  if (worldwide) return { points: 4, reason: null };
+  return { points: -10, reason: `In ${countryName(scope)}, outside where you can work` };
+}
+
+/** Scores a listing 0–100 for one viewer. Geography dominates: a great job you can't take is worth little. */
+export function scoreJob(job: IncomingJob, profile?: string | object | null) {
+  const p = profile && typeof profile === "object" ? resolveProfile(profile) : getProfile(profile);
   const title = job.title.toLowerCase();
-  const blob = [
-    job.title,
-    job.description ?? "",
-    (job.tags ?? []).join(" "),
-    job.location ?? "",
-  ]
-    .join(" ")
-    .toLowerCase();
+  const text = [job.title, job.description, (job.tags ?? []).join(" "), job.location].join(" ").toLowerCase();
 
   let score = 28;
   const reasons: string[] = [];
 
-  // --- geography -----------------------------------------------------------
-  const scope: string = job.remote_scope ?? "unknown";
-  const { regions, canWorkUS, willRelocate } = PROFILE.reach;
-  const wantsWorldwide = regions.includes("worldwide");
-  const wantsEurope = regions.includes("eu") || regions.some((r) => EU_CODES.has(r));
+  const geo = geography(job.remote_scope ?? "unknown", p.reach);
+  score += geo.points;
+  if (geo.reason) reasons.push(geo.reason);
 
-  if (scope === "worldwide") {
-    score += 22;
-    reasons.push("Remote worldwide");
-  } else if (scope === "us") {
-    // Either the best case or a dead end; nothing in between.
-    score += canWorkUS ? 20 : -35;
-    reasons.push(canWorkUS ? "United States, which works for you" : "US-only — likely a dead end");
-  } else if (scope === "eu") {
-    score += wantsEurope ? 20 : wantsWorldwide ? 4 : -8;
-    if (wantsEurope) reasons.push("Remote across Europe");
-  } else if (scope === "other") {
-    score += willRelocate ? 4 : -12;
-    if (!willRelocate) reasons.push("On-site, outside where you work");
-  } else if (scope === "unknown") {
-    // Not stated is not the same as ruled out.
-    score += wantsWorldwide ? 6 : 2;
-  } else if (regions.includes(scope)) {
-    score += 20;
-    reasons.push(`In ${countryName(scope)}, where you can work`);
-  } else if (wantsEurope && EU_CODES.has(scope)) {
-    score += 16;
-    reasons.push(`In ${countryName(scope)}, inside Europe`);
-  } else if (wantsWorldwide) {
-    score += 4;
-  } else {
-    score -= 10;
-    reasons.push(`In ${countryName(scope)}, outside where you can work`);
-  }
-
-  // --- stack ---------------------------------------------------------------
-  const core = has(blob, PROFILE.coreStack);
-  const secondary = has(blob, PROFILE.secondaryStack);
-  const bonus = has(blob, PROFILE.bonusTopics);
-
-  const MAX_STACK = 34;
+  const core = matches(text, p.coreStack);
+  const secondary = matches(text, p.secondaryStack);
+  const bonus = matches(text, p.bonusTopics);
   const stack =
-    Math.min(core.length * 5, 20) +
-    Math.min(secondary.length * 2, 6) +
-    Math.min(bonus.length * 3, 8);
+    Math.min(core.length * 5, 20) + Math.min(secondary.length * 2, 6) + Math.min(bonus.length * 3, 8);
 
-  // Some boards give a full job description, others give a one-line tagline.
-  // Scoring the thin ones on keyword count alone would rank them below verbose
-  // listings for being thin, so blend what is known with a neutral prior.
-  const hasBody = (job.description ?? "").length > 200;
-  if (hasBody) {
+  // A one-line tagline shouldn't rank below a verbose listing just for being short,
+  // so blend what little we know with a neutral prior.
+  if ((job.description ?? "").length > 200) {
     score += stack;
   } else {
-    score += Math.round(stack * 0.5 + MAX_STACK * 0.5 * 0.5);
+    score += Math.round(stack / 2 + 34 / 4);
     reasons.push("Short listing — scored mostly on title and tags");
   }
-
   if (core.length) reasons.push(`Core stack: ${core.slice(0, 4).join(", ")}`);
   if (bonus.length) reasons.push(`Topics: ${bonus.slice(0, 3).join(", ")}`);
 
-  // --- title ---------------------------------------------------------------
-  // Seniority words say how senior, not what kind of job. Keep them out of the
-  // test for "is this even the right family".
-  const SENIORITY = ["senior", "staff", "lead", "principal", "head of"];
-  const familyTitles = PROFILE.goodTitles.filter((t) => !SENIORITY.includes(t));
-  const familyHit = has(title, familyTitles);
-
-  const good = has(title, PROFILE.goodTitles);
-  const bad = has(title, PROFILE.badTitles);
-  score += Math.min(good.length * 3, 8);
-  score -= bad.length * 25;
+  const good = matches(title, p.goodTitles);
+  const bad = matches(title, p.badTitles);
+  score += Math.min(good.length * 3, 8) - bad.length * 25;
   if (bad.length) reasons.push(`Off-profile title: ${bad.join(", ")}`);
 
-  // A description can be full of the right words while the job is something
-  // else — a design studio hiring a Shopify developer reads as a design role
-  // until you look at the title.
-  if (!familyHit.length) {
+  // The description can be full of the right words while the job is something else.
+  if (!matches(title, p.goodTitles.filter((t) => !SENIORITY.includes(t))).length) {
     score -= 14;
     reasons.push("Title does not name this kind of role");
   }
   if (/\b(senior|staff|lead|principal)\b/.test(title)) reasons.push("Senior-level title");
 
-  // --- pay -----------------------------------------------------------------
-  const { floor, strong, currency } = PROFILE.money;
-  if (job.salary_max && (floor > 0 || strong > 0)) {
-    const yearly =
-      job.salary_period === "month"
-        ? job.salary_max * 12
-        : job.salary_period === "hour"
-          ? job.salary_max * 1800
-          : job.salary_max;
-
-    // Rough, but enough to compare a band against an expectation.
-    const TO_EUR: Record<string, number> = { EUR: 1, USD: 0.92, GBP: 1.17, PLN: 0.23 };
-    const inEur = yearly * (TO_EUR[job.currency ?? "USD"] ?? 1);
-    const strongEur = strong * (TO_EUR[currency] ?? 1);
-    const floorEur = floor * (TO_EUR[currency] ?? 1);
-
-    if (strongEur > 0 && inEur >= strongEur) {
+  const { floor, strong, currency } = p.money;
+  if (job.salary_max && (floor || strong)) {
+    const perYear =
+      job.salary_period === "month" ? job.salary_max * 12
+      : job.salary_period === "hour" ? job.salary_max * 1800
+      : job.salary_max;
+    const eur = perYear * (TO_EUR[job.currency ?? "USD"] ?? 1);
+    const rate = TO_EUR[currency] ?? 1;
+    if (strong && eur >= strong * rate) {
       score += 6;
       reasons.push("Top of band is strong for you");
-    } else if (floorEur > 0 && inEur > 0 && inEur < floorEur) {
+    } else if (floor && eur < floor * rate) {
       score -= 8;
       reasons.push("Below the salary you set");
     }
   }
 
-  // Talent marketplaces and body shops: real work, but you are placed with a
-  // client rather than joining a product team. Pushed down, not hidden.
   if (AGENCIES.some((a) => job.company.toLowerCase().includes(a))) {
     score -= 14;
     reasons.push("Staffing marketplace, not a direct employer");
@@ -165,30 +100,17 @@ export function scoreJob(
   return { score: Math.max(0, Math.min(100, Math.round(score))), reasons };
 }
 
-/**
- * Best-effort reading of a free-text location / remote blurb.
- * Order matters: the most specific signal wins.
- */
-/**
- * Reads a listing's reach from free text. Returns "worldwide", "us", a two
- * letter country code, "eu" when it is Europe-wide, or "unknown".
- */
+/** Reads a listing's reach from free text: "worldwide", "us", "eu", a country code, or "unknown". */
 export function inferScope(text: string | null | undefined): Scope {
   if (!text) return "unknown";
   const t = text.toLowerCase();
 
   if (/\b(worldwide|anywhere|global|any location|fully remote)\b/.test(t)) return "worldwide";
-  if (
-    /(remote \(us\)|us only|usa only|united states only|us-based|must be located in the us|americas time zone)/.test(
-      t,
-    )
-  )
+  if (/(remote \(us\)|us only|usa only|united states only|us-based|must be located in the us|americas time zone)/.test(t))
     return "us";
-  if (/\b(emea|europe|european|eu only|eu-based|\beu\b)\b/.test(t)) return "eu";
+  if (/\b(emea|europe|european|eu only|eu-based|eu)\b/.test(t)) return "eu";
 
   const country = detectCountry(text);
-  if (country) return country as Scope;
-
-  if (/\b(remote)\b/.test(t)) return "worldwide";
-  return "unknown";
+  if (country) return country;
+  return /\bremote\b/.test(t) ? "worldwide" : "unknown";
 }

@@ -28,7 +28,7 @@ export async function fetchWeWorkRemotely(): Promise<IncomingJob[]> {
       if (!link || !rawTitle || seen.has(link)) continue;
       seen.add(link);
 
-      // WWR titles read "Company: Job Title".
+      // Titles read "Company: Job title".
       const idx = rawTitle.indexOf(":");
       const company = idx > 0 ? decodeEntities(rawTitle.slice(0, idx)) : "Unknown";
       const title = idx > 0 ? decodeEntities(rawTitle.slice(idx + 1)) : rawTitle;

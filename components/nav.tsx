@@ -14,9 +14,8 @@ export default function Nav() {
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-bg/90 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-[1400px] items-center gap-2 px-4 sm:h-16 sm:gap-5 sm:px-5">
-        {/* The wordmark is the first thing to go when space is tight. */}
         <span className="hidden whitespace-nowrap text-lg font-bold tracking-tight sm:inline">
-          Job Tracker
+          Jobshelf
         </span>
 
         <nav className="flex min-w-0 items-center gap-1">

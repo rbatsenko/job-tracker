@@ -1,9 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { StageBar, StagePicker, ScopeTag, money, sinceLabel } from "@/components/bits";
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
+import AddJobForm from "@/components/add-job-form";
+import { ScopeTag, StageBar, money, sinceLabel } from "@/components/bits";
+import JobEditor from "@/components/job-editor";
+import SavingHelp from "@/components/saving-help";
 import Select from "@/components/select";
+import { card, primaryButton } from "@/components/styles";
 import {
+  SORTS,
+  SORT_LABEL,
   addMyJob,
   copyForAssistant,
   exportMyJobs,
@@ -12,347 +19,208 @@ import {
   removeMyJob,
   sortMyJobs,
   updateMyJob,
-  SORTS,
-  SORT_LABEL,
   type MyJob,
   type SortKey,
 } from "@/lib/my-jobs";
-import type { Status } from "@/lib/types";
+
+type Message = { tone: "ok" | "error"; text: string } | null;
+
+const toolbarButton =
+  "h-11 flex-1 whitespace-nowrap rounded-field border border-line px-3 text-[0.9375rem] font-medium text-soft transition hover:bg-sunken hover:text-text sm:flex-none sm:px-4 sm:text-base";
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+function download(name: string, contents: string) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([contents], { type: "application/json" }));
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
 
 export default function MyJobsPage() {
   const [jobs, setJobs] = useState<MyJob[]>([]);
   const [ready, setReady] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
   const [sort, setSort] = useState<SortKey>("progress");
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  /** Mirror to SQLite when the app runs somewhere with a real filesystem. */
-  const mirror = useCallback((next: MyJob[]) => {
-    fetch("/api/my-jobs", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ jobs: next }),
-    }).catch(() => {});
-  }, []);
-
-  const refresh = useCallback(() => {
-    const next = listMyJobs();
-    setJobs(next);
-    mirror(next);
-  }, [mirror]);
+  const [message, setMessage] = useState<Message>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setJobs(listMyJobs());
     setReady(true);
   }, []);
 
-  const guard = (fn: () => void) => {
+  /** Applies a change, re-reads the list, and mirrors it to SQLite when running locally. */
+  function mutate(change: () => void) {
     try {
-      fn();
-      setError(null);
-      refresh();
+      change();
+      const next = listMyJobs();
+      setJobs(next);
+      fetch("/api/my-jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobs: next }),
+      }).catch(() => {});
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setMessage({ tone: "error", text: e instanceof Error ? e.message : String(e) });
     }
-  };
+  }
 
-  const open = openId ? jobs.find((j) => j.id === openId) : null;
-
-  const counts = useMemo(() => {
-    const c: Record<string, number> = {};
-    for (const j of jobs) c[j.status] = (c[j.status] ?? 0) + 1;
-    return c;
-  }, [jobs]);
-
-  const onImport = async (file: File) => {
-    guard(() => {
-      const text = (file as unknown as { text: () => Promise<string> }).text;
-      void text;
-    });
-    const raw = await file.text();
+  async function importFile(file: File) {
     try {
-      const n = importMyJobs(raw, "merge");
-      setError(null);
-      setNotice(
-        n === 0
-          ? "That file held nothing new — anything already here was updated."
-          : `Added ${n} ${n === 1 ? "job" : "jobs"}.`,
-      );
-      refresh();
-    } catch (e) {
-      setNotice(null);
-      setError(
-        `That file could not be read${e instanceof Error ? `: ${e.message}` : ""}. It should be a my-jobs.json exported from this app.`,
-      );
+      const added = importMyJobs(await file.text());
+      mutate(() => {});
+      setMessage({ tone: "ok", text: added ? `Added ${plural(added, "job")}.` : "Nothing new — existing jobs were updated." });
+    } catch {
+      setMessage({ tone: "error", text: "That file couldn't be read. It should be a my-jobs.json exported from here." });
     }
-  };
+  }
+
+  async function copyList() {
+    await navigator.clipboard.writeText(copyForAssistant());
+    setMessage({ tone: "ok", text: `Copied ${plural(jobs.length, "job")} with instructions — paste it into Claude.` });
+  }
+
+  const applied = jobs.filter((j) => j.status === "applied").length;
+  const interviewing = jobs.filter((j) => j.status === "interviewing").length;
+  const summary = [plural(jobs.length, "job"), applied && `${applied} applied`, interviewing && `${interviewing} interviewing`]
+    .filter(Boolean)
+    .join(", ");
 
   return (
     <main className="mx-auto max-w-[1400px] px-4 py-6 sm:px-5 sm:py-8">
-      <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+      <header className="mb-7 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">My jobs</h1>
-          <p className="mt-1.5 text-base text-soft">
-            {!ready
-              ? " "
-              : jobs.length === 0
-                ? "Nothing here yet."
-                : `${jobs.length} ${jobs.length === 1 ? "job" : "jobs"}${
-                    counts.applied ? `, ${counts.applied} applied` : ""
-                  }${counts.interviewing ? `, ${counts.interviewing} interviewing` : ""}`}
-          </p>
+          <p className="mt-1.5 text-base text-soft">{!ready ? " " : jobs.length ? summary : "Nothing here yet."}</p>
         </div>
 
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-          <button
-            onClick={() =>
-              guard(() => {
-                void navigator.clipboard.writeText(copyForAssistant());
-                setNotice(`Copied ${jobs.length} ${jobs.length === 1 ? "job" : "jobs"} plus instructions — paste it straight into Claude.`);
-              })
-            }
-            className="h-11 flex-1 whitespace-nowrap rounded-field border border-line px-3 text-[0.9375rem] font-medium text-soft transition hover:bg-sunken hover:text-text sm:flex-none sm:px-4 sm:text-base"
-          >
-            Copy for Claude
-          </button>
-          <button
-            onClick={() => {
-              const blob = new Blob([exportMyJobs()], { type: "application/json" });
-              const a = document.createElement("a");
-              a.href = URL.createObjectURL(blob);
-              a.download = "my-jobs.json";
-              a.click();
-              URL.revokeObjectURL(a.href);
-            }}
-            className="h-11 flex-1 whitespace-nowrap rounded-field border border-line px-3 text-[0.9375rem] font-medium text-soft transition hover:bg-sunken hover:text-text sm:flex-none sm:px-4 sm:text-base"
-          >
-            Export
-          </button>
-          <button
-            onClick={() => fileRef.current?.click()}
-            className="h-11 flex-1 whitespace-nowrap rounded-field border border-line px-3 text-[0.9375rem] font-medium text-soft transition hover:bg-sunken hover:text-text sm:flex-none sm:px-4 sm:text-base"
-          >
-            Import
-          </button>
+          <button onClick={copyList} className={toolbarButton}>Copy for Claude</button>
+          <button onClick={() => download("my-jobs.json", exportMyJobs())} className={toolbarButton}>Export</button>
+          <button onClick={() => fileInput.current?.click()} className={toolbarButton}>Import</button>
           <input
-            ref={fileRef}
+            ref={fileInput}
             type="file"
             accept="application/json,.json"
             className="hidden"
             onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) void onImport(f);
+              const file = e.target.files?.[0];
+              if (file) importFile(file);
               e.target.value = "";
             }}
           />
           <button
             onClick={() => setShowHelp((v) => !v)}
             aria-expanded={showHelp}
-            className="h-11 w-11 shrink-0 rounded-field border border-line text-base font-medium text-soft transition hover:bg-sunken hover:text-text"
-            title="How saving and syncing works"
+            aria-label="How saving works"
+            className={`${toolbarButton} w-11 flex-none`}
           >
             ?
           </button>
-          <button
-            onClick={() => setAdding(true)}
-            className="h-11 w-full whitespace-nowrap rounded-field bg-brand px-5 text-base font-semibold text-brand-text transition hover:brightness-110 sm:w-auto"
-          >
+          <button onClick={() => setAdding(true)} className={`${primaryButton} w-full sm:w-auto`}>
             Add a job
           </button>
         </div>
-      </div>
+      </header>
 
-      {jobs.length > 1 && !showHelp && (
-        <div className="mb-5 flex items-center gap-2.5">
-          <span className="shrink-0 text-sm text-faint">Sort by</span>
-          <Select
-            label="Sort my jobs"
-            className="w-56"
-            value={sort}
-            onChange={(v) => setSort(v as SortKey)}
-            options={SORTS.map((k) => ({ value: k, label: SORT_LABEL[k] }))}
-          />
+      {showHelp && <SavingHelp onClose={() => setShowHelp(false)} />}
+
+      {!showHelp && jobs.length > 0 && (
+        <div className="mb-5 space-y-4">
+          {jobs.length > 1 && (
+            <div className="flex items-center gap-2.5">
+              <span className="shrink-0 text-sm text-faint">Sort by</span>
+              <Select
+                label="Sort my jobs"
+                className="w-56"
+                value={sort}
+                onChange={(v) => setSort(v as SortKey)}
+                options={SORTS.map((k) => ({ value: k, label: SORT_LABEL[k] }))}
+              />
+            </div>
+          )}
+          <p className="text-sm text-faint">
+            Export saves a file, Import merges one back in, and Copy for Claude copies your list with
+            instructions for an assistant.
+          </p>
         </div>
       )}
 
-      {jobs.length > 0 && !showHelp && (
-        <p className="mb-5 text-sm text-faint">
-          <strong className="font-medium text-soft">Export</strong> saves a file ·{" "}
-          <strong className="font-medium text-soft">Import</strong> merges one back in ·{" "}
-          <strong className="font-medium text-soft">Copy for Claude</strong> copies your list
-          with instructions, ready to paste into an assistant
+      {message && (
+        <p
+          role="status"
+          className={`mb-5 rounded-field border px-4 py-3 text-base ${
+            message.tone === "ok" ? "border-brand/40 bg-brand-soft text-brand" : "border-closed/40 bg-closed/10 text-closed"
+          }`}
+        >
+          {message.text}
         </p>
       )}
 
-      {showHelp && (
-        <section className="mb-6 rounded-card border border-line bg-raised p-5 shadow-[var(--shadow)] sm:p-6">
-          <h2 className="text-lg font-semibold">Where your jobs are saved</h2>
-          <p className="mt-2 max-w-prose text-base text-soft">
-            Only in this browser. Nothing is sent to a server, so your notes and drafts stay
-            with you — but they will not appear on your phone, on another browser, or after
-            you clear site data. Export is how you move them and how you back them up.
-          </p>
-
-          <dl className="mt-5 space-y-4">
-            <div>
-              <dt className="text-base font-semibold">Export</dt>
-              <dd className="mt-0.5 max-w-prose text-base text-soft">
-                Downloads <code className="rounded bg-sunken px-1.5 py-0.5">my-jobs.json</code>{" "}
-                with everything — stages, notes, drafts, dates. Keep it somewhere safe.
-              </dd>
-            </div>
-            <div>
-              <dt className="text-base font-semibold">Import</dt>
-              <dd className="mt-0.5 max-w-prose text-base text-soft">
-                Takes that same file back. It merges rather than replaces, so a job you already
-                have is updated instead of duplicated. Safe to run twice.
-              </dd>
-            </div>
-            <div>
-              <dt className="text-base font-semibold">Copy for Claude</dt>
-              <dd className="mt-0.5 max-w-prose text-base text-soft">
-                Puts your list on the clipboard together with instructions for an assistant.
-                Paste it into Claude and ask it to rank your jobs or draft a message. If it
-                gives you an edited list back, save it as a file and use Import.
-              </dd>
-            </div>
-          </dl>
-
-          <h3 className="mt-7 text-base font-semibold">What the file looks like</h3>
-          <p className="mt-1.5 max-w-prose text-base text-soft">
-            Plain JSON. Only <strong className="font-semibold text-text">company</strong> and{" "}
-            <strong className="font-semibold text-text">title</strong> are required — leave out
-            anything you do not have, and unknown fields are ignored. Keep{" "}
-            <code className="rounded bg-sunken px-1.5 py-0.5">id</code> if you are editing an
-            existing job, or drop it and one will be made for you.
-          </p>
-
-          <pre className="scroll-thin mt-3 overflow-x-auto rounded-field border border-line bg-sunken p-4 text-sm leading-relaxed">
-{`{
-  "version": 1,
-  "jobs": [
-    {
-      "id": "mj_7f2c...",              // keep it, or omit for a new job
-      "company": "Acme",               // required
-      "title": "Senior Product Designer", // required
-      "url": "https://acme.com/jobs/12",
-      "location": "Remote (Europe)",
-      "status": "applied",
-      "notes": "Referred by Kasia",
-      "draft": "Hi — I saw you are hiring...",
-      "next_action": "Follow up Friday",
-      "applied_at": "2026-09-22T10:00:00.000Z"
-    }
-  ]
-}`}
-          </pre>
-
-          <p className="mt-3 max-w-prose text-base text-soft">
-            <strong className="font-semibold text-text">status</strong> is one of: new,
-            shortlist, drafted, applied, replied, interviewing, offer, rejected, archived.
-            Dates are ISO-8601. Salary, if you have it, goes in{" "}
-            <code className="rounded bg-sunken px-1.5 py-0.5">salary_min</code>,{" "}
-            <code className="rounded bg-sunken px-1.5 py-0.5">salary_max</code> and{" "}
-            <code className="rounded bg-sunken px-1.5 py-0.5">currency</code>.
-          </p>
-
-          <p className="mt-5 max-w-prose text-sm text-faint">
-            Moving from your laptop to your phone: Export on one, email or AirDrop the file to
-            yourself, Import on the other. The full field list is at{" "}
-            <a href="/llms.txt" className="text-brand underline underline-offset-4">/llms.txt</a>,
-            which is also what to point an assistant at.
-          </p>
-
-          <button
-            onClick={() => setShowHelp(false)}
-            className="mt-5 h-11 rounded-field border border-line px-4 text-base font-medium text-soft hover:bg-sunken"
-          >
-            Got it
-          </button>
-        </section>
+      {adding && (
+        <AddJobForm
+          onCancel={() => setAdding(false)}
+          onSave={(job) =>
+            mutate(() => {
+              addMyJob(job);
+              setAdding(false);
+            })
+          }
+        />
       )}
 
-      {notice && (
-        <p className="mb-5 rounded-field border border-brand/40 bg-brand-soft px-4 py-3 text-base text-brand">
-          {notice}
-        </p>
-      )}
-
-      {error && (
-        <p className="mb-5 rounded-field border border-closed/40 bg-closed/10 px-4 py-3 text-base text-closed">
-          {error}
-        </p>
-      )}
-
-      {ready && jobs.length === 0 && !adding && (
-        <div className="rounded-card border border-line bg-raised p-6 shadow-[var(--shadow)] sm:p-12 sm:text-center">
-          <h2 className="text-xl font-semibold sm:text-2xl">Add the first job you are chasing</h2>
+      {ready && !jobs.length && !adding && (
+        <div className={`${card} p-6 sm:p-12 sm:text-center`}>
+          <h2 className="text-xl font-semibold sm:text-2xl">Add the first job you're chasing</h2>
           <p className="mt-2 max-w-md text-base text-soft sm:mx-auto">
-            Paste one you found anywhere, or browse the board and add from there. Everything
-            stays in this browser.
+            Paste one you found anywhere, or browse the board and add from there. Everything stays in this browser.
           </p>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
-            <button
-              onClick={() => setAdding(true)}
-              className="flex h-12 items-center justify-center whitespace-nowrap rounded-field bg-brand px-5 text-base font-semibold text-brand-text"
-            >
-              Add a job
-            </button>
-            <a
+            <button onClick={() => setAdding(true)} className={primaryButton}>Add a job</button>
+            <Link
               href="/board"
-              className="flex h-12 items-center justify-center whitespace-nowrap rounded-field border border-line px-5 text-base font-medium text-soft hover:bg-sunken"
+              className="flex h-11 items-center justify-center rounded-field border border-line px-5 text-base font-medium text-soft hover:bg-sunken"
             >
               Browse the board
-            </a>
+            </Link>
           </div>
         </div>
       )}
 
-      {adding && (
-        <AddForm
-          onCancel={() => setAdding(false)}
-          onSave={(draft) => {
-            guard(() => {
-              addMyJob(draft);
-              setAdding(false);
-            });
-          }}
-        />
-      )}
-
       {jobs.length > 0 && (
-        <ul className="overflow-hidden rounded-card border border-line bg-raised shadow-[var(--shadow)]">
-          {sortMyJobs(jobs, sort).map((j, i) => (
-            <li key={j.id} className={i > 0 ? "border-t border-line" : ""}>
+        <ul className={`${card} overflow-hidden`}>
+          {sortMyJobs(jobs, sort).map((job, i) => (
+            <li key={job.id} className={i ? "border-t border-line" : ""}>
               <button
-                onClick={() => setOpenId(openId === j.id ? null : j.id)}
+                onClick={() => setOpenId(openId === job.id ? null : job.id)}
+                aria-expanded={openId === job.id}
                 className="flex w-full flex-col items-start gap-2.5 px-4 py-4 text-left transition hover:bg-sunken sm:flex-row sm:items-center sm:gap-5 sm:px-5"
               >
-                <span className="min-w-0 w-full flex-1">
+                <span className="w-full min-w-0 flex-1">
                   <span className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
-                    {j.starred && <span className="text-brand">★</span>}
-                    <span className="text-lg font-semibold leading-snug">{j.title}</span>
-                    <span className="truncate text-base text-soft">{j.company}</span>
+                    {job.starred && <span className="text-brand">★</span>}
+                    <span className="text-lg font-semibold leading-snug">{job.title}</span>
+                    <span className="truncate text-base text-soft">{job.company}</span>
                   </span>
                   <span className="mt-1.5 flex flex-wrap items-center gap-2.5 text-sm text-faint">
-                    {j.remote_scope && <ScopeTag scope={j.remote_scope} />}
-                    {money(j) && <span className="text-soft">{money(j)}</span>}
-                    {j.applied_at && <span>applied {sinceLabel(j.applied_at)}</span>}
-                    {j.next_action && <span className="text-brand">next: {j.next_action}</span>}
+                    {job.remote_scope && <ScopeTag scope={job.remote_scope} />}
+                    {money(job) && <span className="text-soft">{money(job)}</span>}
+                    {job.applied_at && <span>applied {sinceLabel(job.applied_at)}</span>}
+                    {job.next_action && <span className="text-brand">next: {job.next_action}</span>}
                   </span>
                 </span>
-                <StageBar status={j.status} />
+                <StageBar status={job.status} />
               </button>
 
-              {openId === j.id && (
-                <Editor
-                  job={j}
-                  onChange={(patch) => guard(() => void updateMyJob(j.id, patch))}
-                  onDelete={() => guard(() => void removeMyJob(j.id))}
+              {openId === job.id && (
+                <JobEditor
+                  job={job}
+                  onChange={(patch) => mutate(() => updateMyJob(job.id, patch))}
+                  onDelete={() => mutate(() => removeMyJob(job.id))}
                   onClose={() => setOpenId(null)}
                 />
               )}
@@ -361,274 +229,5 @@ export default function MyJobsPage() {
         </ul>
       )}
     </main>
-  );
-}
-
-const field =
-  "h-11 w-full rounded-field border border-line bg-bg px-3.5 text-base outline-none focus:border-brand";
-const label = "mb-1.5 block text-sm font-medium text-soft";
-
-function AddForm({
-  onSave,
-  onCancel,
-}: {
-  onSave: (j: Record<string, unknown> & { company: string; title: string }) => void;
-  onCancel: () => void;
-}) {
-  const [company, setCompany] = useState("");
-  const [title, setTitle] = useState("");
-  const [url, setUrl] = useState("");
-  const [location, setLocation] = useState("");
-  const [status, setStatus] = useState<Status>("shortlist");
-  const [extra, setExtra] = useState<Record<string, unknown>>({});
-
-  const [looking, setLooking] = useState(false);
-  const [lookupNote, setLookupNote] = useState<string | null>(null);
-
-  /** Most jobs arrive as a link; retyping what is already on the page is the
-      tedious part. The big applicant systems publish the posting as JSON. */
-  const lookup = async (link: string) => {
-    if (!link.trim()) return;
-    setLooking(true);
-    setLookupNote(null);
-    try {
-      const res = await fetch("/api/lookup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: link }),
-      });
-      const data = (await res.json()) as Record<string, any>;
-      if (!res.ok || !data.title) {
-        setLookupNote(data.error ?? "Could not read that page — fill it in by hand.");
-        return;
-      }
-      setCompany(data.company ?? "");
-      setTitle(data.title ?? "");
-      setLocation(data.location ?? "");
-      setUrl(data.url ?? link);
-      setExtra({
-        remote_scope: data.remote_scope ?? null,
-        description: data.description ?? null,
-        salary_min: data.salary_min ?? null,
-        salary_max: data.salary_max ?? null,
-        currency: data.currency ?? null,
-        salary_period: data.salary_period ?? null,
-      });
-      setLookupNote(`Filled in from ${data.via}. Change anything that looks wrong.`);
-    } catch {
-      setLookupNote("Could not reach that page — fill it in by hand.");
-    } finally {
-      setLooking(false);
-    }
-  };
-
-  return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (!company.trim() || !title.trim()) return;
-        onSave({ ...extra, company, title, url: url || null, location: location || null, status });
-      }}
-      className="mb-6 rounded-card border border-line bg-raised p-6 shadow-[var(--shadow)]"
-    >
-      <h2 className="mb-5 text-xl font-semibold">Add a job</h2>
-
-      <div className="mb-5">
-        <label className={label} htmlFor="link">
-          Paste a link
-        </label>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <input
-            id="link"
-            className={field}
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            onPaste={(e) => {
-              const pasted = e.clipboardData.getData("text");
-              if (/^https?:\/\//.test(pasted.trim())) setTimeout(() => void lookup(pasted), 0);
-            }}
-            placeholder="https://job-boards.greenhouse.io/…"
-            autoFocus
-          />
-          <button
-            type="button"
-            onClick={() => void lookup(url)}
-            disabled={looking || !url.trim()}
-            className="h-11 shrink-0 whitespace-nowrap rounded-field border border-line px-4 text-base font-medium text-soft transition hover:bg-sunken hover:text-text disabled:opacity-50"
-          >
-            {looking ? "Reading…" : "Fill it in"}
-          </button>
-        </div>
-        <p className="mt-1.5 text-sm text-faint">
-          {lookupNote ??
-            "Greenhouse, Lever and Ashby links fill themselves in. Anything else, type it below."}
-        </p>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <label className={label} htmlFor="c">Company</label>
-          <input id="c" className={field} value={company} onChange={(e) => setCompany(e.target.value)} required />
-        </div>
-        <div>
-          <label className={label} htmlFor="t">Role</label>
-          <input id="t" className={field} value={title} onChange={(e) => setTitle(e.target.value)} required />
-        </div>
-        <div>
-          <label className={label} htmlFor="l">Location</label>
-          <input id="l" className={field} value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Remote, Kraków…" />
-        </div>
-        <div>
-          <label className={label} htmlFor="s">Stage</label>
-          <StagePicker id="s" value={status} onChange={setStatus} />
-        </div>
-      </div>
-      <div className="mt-6 flex gap-3">
-        <button type="submit" className="h-11 rounded-field bg-brand px-5 text-base font-semibold text-brand-text">
-          Save job
-        </button>
-        <button type="button" onClick={onCancel} className="h-11 rounded-field border border-line px-5 text-base font-medium text-soft hover:bg-sunken">
-          Cancel
-        </button>
-      </div>
-    </form>
-  );
-}
-
-function Editor({
-  job,
-  onChange,
-  onDelete,
-  onClose,
-}: {
-  job: MyJob;
-  onChange: (patch: Partial<MyJob>) => void;
-  onDelete: () => void;
-  onClose: () => void;
-}) {
-  const [local, setLocal] = useState(job);
-  const [confirming, setConfirming] = useState(false);
-  useEffect(() => setLocal(job), [job]);
-
-  const set = <K extends keyof MyJob>(k: K, v: MyJob[K]) => setLocal((p) => ({ ...p, [k]: v }));
-  const commit = (k: keyof MyJob) => onChange({ [k]: local[k] } as Partial<MyJob>);
-
-  return (
-    <div className="border-t border-line bg-sunken px-4 py-5 sm:px-5 sm:py-6">
-      <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
-        <div className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className={label}>Company</label>
-              <input className={field} value={local.company} onChange={(e) => set("company", e.target.value)} onBlur={() => commit("company")} />
-            </div>
-            <div>
-              <label className={label}>Role</label>
-              <input className={field} value={local.title} onChange={(e) => set("title", e.target.value)} onBlur={() => commit("title")} />
-            </div>
-            <div>
-              <label className={label}>Link</label>
-              <input className={field} value={local.url ?? ""} onChange={(e) => set("url", e.target.value)} onBlur={() => commit("url")} />
-            </div>
-            <div>
-              <label className={label}>Location</label>
-              <input className={field} value={local.location ?? ""} onChange={(e) => set("location", e.target.value)} onBlur={() => commit("location")} />
-            </div>
-            <div>
-              <label className={label} htmlFor={`stage-${local.id}`}>Stage</label>
-              <StagePicker id={`stage-${local.id}`} value={local.status} onChange={(s) => onChange({ status: s })} />
-            </div>
-            <div>
-              <label className={label}>What is next</label>
-              <input className={field} value={local.next_action ?? ""} onChange={(e) => set("next_action", e.target.value)} onBlur={() => commit("next_action")} placeholder="Follow up on Friday" />
-            </div>
-          </div>
-
-          <div>
-            <label className={label}>Your message to them</label>
-            <textarea
-              rows={9}
-              className="w-full resize-y rounded-field border border-line bg-bg p-3.5 text-base leading-relaxed outline-none focus:border-brand"
-              value={local.draft ?? ""}
-              onChange={(e) => set("draft", e.target.value)}
-              onBlur={() => commit("draft")}
-              placeholder="Write what you will send."
-            />
-            {local.draft && (
-              <button
-                onClick={() => navigator.clipboard.writeText(local.draft ?? "")}
-                className="mt-2 h-9 rounded-md border border-line px-3 text-sm text-soft hover:bg-raised"
-              >
-                Copy message
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <label className={label}>Notes</label>
-            <textarea
-              rows={5}
-              className="w-full resize-y rounded-field border border-line bg-bg p-3.5 text-base outline-none focus:border-brand"
-              value={local.notes ?? ""}
-              onChange={(e) => set("notes", e.target.value)}
-              onBlur={() => commit("notes")}
-            />
-          </div>
-
-          {local.fit_reasons.length > 0 && (
-            <div className="rounded-field border border-line bg-raised p-4">
-              <p className="mb-2 text-sm font-medium text-soft">
-                Scored {local.fit_score} when it came off the board
-              </p>
-              <ul className="space-y-1 text-sm text-soft">
-                {local.fit_reasons.map((r) => <li key={r}>— {r}</li>)}
-              </ul>
-            </div>
-          )}
-
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => onChange({ starred: !job.starred })}
-              className={`h-11 rounded-field px-4 text-base font-medium ${job.starred ? "bg-brand-soft text-brand" : "border border-line text-soft hover:bg-raised"}`}
-            >
-              ★ {job.starred ? "Starred" : "Star"}
-            </button>
-            {local.url && (
-              <a
-                href={local.url}
-                target="_blank"
-                rel="noreferrer"
-                className="flex h-11 items-center rounded-field border border-line px-4 text-base font-medium text-soft hover:bg-raised"
-              >
-                Open posting
-              </a>
-            )}
-            <button onClick={onClose} className="h-11 rounded-field border border-line px-4 text-base font-medium text-soft hover:bg-raised">
-              Close
-            </button>
-          </div>
-
-          <div className="border-t border-line pt-4">
-            {confirming ? (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-soft">Remove this job?</span>
-                <button onClick={onDelete} className="h-9 rounded-md bg-closed px-3 text-sm font-semibold text-white">
-                  Remove
-                </button>
-                <button onClick={() => setConfirming(false)} className="h-9 rounded-md border border-line px-3 text-sm text-soft">
-                  Keep
-                </button>
-              </div>
-            ) : (
-              <button onClick={() => setConfirming(true)} className="text-sm text-faint underline-offset-4 hover:text-closed hover:underline">
-                Remove this job
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
   );
 }
