@@ -1,7 +1,8 @@
 "use client";
 
 import Select from "./select";
-import { countryName } from "@/lib/countries";
+import { COUNTRY_OPTIONS, countryName } from "@/lib/countries";
+import { inferScope } from "@/lib/score";
 import { STATUSES, type Status } from "@/lib/types";
 
 const PIPELINE: Status[] = ["shortlist", "drafted", "applied", "replied", "interviewing", "offer"];
@@ -108,6 +109,50 @@ export function ScopeTag({ scope }: { scope: string }) {
       {scopeLabel(scope)}
     </span>
   );
+}
+
+const SCOPE_OPTIONS = [
+  { value: "unknown", label: "Not stated" },
+  { value: "worldwide", label: "Remote worldwide" },
+  { value: "eu", label: "Remote in Europe" },
+  { value: "us", label: "US only" },
+  ...COUNTRY_OPTIONS.map((c) => ({ value: c.code, label: c.name, group: "Country" })),
+];
+
+/** The reach tag shown in the list. "Not stated" saves as no tag at all. */
+export function ScopePicker({
+  id,
+  value,
+  onChange,
+}: {
+  id?: string;
+  value: string | null;
+  onChange: (scope: string | null) => void;
+}) {
+  return (
+    <Select
+      id={id}
+      label="Where"
+      inset
+      value={value ?? "unknown"}
+      onChange={(v) => onChange(v === "unknown" ? null : v)}
+      options={SCOPE_OPTIONS}
+    />
+  );
+}
+
+const guessScope = (location: string | null | undefined) => {
+  const scope = inferScope(location);
+  return scope === "unknown" ? null : scope;
+};
+
+/**
+ * The reach to keep after the location changes. It follows the location while
+ * it's unset or still the guess from the old text; a hand-picked one stays.
+ */
+export function scopeAfterLocationEdit(scope: string | null, before: string | null, after: string | null) {
+  const followed = !scope || scope === "unknown" || scope === guessScope(before);
+  return followed ? guessScope(after) : scope;
 }
 
 const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();

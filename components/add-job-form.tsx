@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { StagePicker } from "./bits";
+import { useRef, useState } from "react";
+import { ScopePicker, StagePicker, scopeAfterLocationEdit } from "./bits";
 import SalaryFields, { fromDraft, toDraft } from "./salary-fields";
 import { input, label, card, primaryButton, secondaryButton } from "./styles";
 import type { MyJob } from "@/lib/my-jobs";
@@ -14,6 +14,9 @@ export default function AddJobForm({ onSave, onCancel }: { onSave: (job: NewJob)
   const [company, setCompany] = useState("");
   const [title, setTitle] = useState("");
   const [location, setLocation] = useState("");
+  const [scope, setScope] = useState<string | null>(null);
+  // The location Where was last worked out from, so a guess follows edits but a pick doesn't.
+  const scopedFrom = useRef("");
   const [status, setStatus] = useState<Status>("shortlist");
   const [details, setDetails] = useState<Partial<MyJob>>({});
   const [salary, setSalary] = useState(() => toDraft({}));
@@ -39,10 +42,9 @@ export default function AddJobForm({ onSave, onCancel }: { onSave: (job: NewJob)
       setCompany(found.company ?? "");
       setTitle(found.title);
       setLocation(found.location ?? "");
-      setDetails({
-        remote_scope: found.remote_scope ?? null,
-        description: found.description ?? null,
-      });
+      setScope(found.remote_scope && found.remote_scope !== "unknown" ? found.remote_scope : null);
+      scopedFrom.current = found.location ?? "";
+      setDetails({ description: found.description ?? null });
       // Only replace what's typed when the posting names a figure.
       if (found.salary_max || found.salary_min) setSalary(toDraft(found));
       setNote(`Filled in from ${found.via}. Change anything that looks wrong.`);
@@ -58,7 +60,18 @@ export default function AddJobForm({ onSave, onCancel }: { onSave: (job: NewJob)
       onSubmit={(e) => {
         e.preventDefault();
         if (!company.trim() || !title.trim()) return;
-        onSave({ ...details, ...fromDraft(salary), company, title, status, url: url || null, location: location || null });
+        // Enter submits without leaving the field, so settle Where here too.
+        const remote_scope = scopeAfterLocationEdit(scope, scopedFrom.current, location);
+        onSave({
+          ...details,
+          ...fromDraft(salary),
+          company,
+          title,
+          status,
+          remote_scope,
+          url: url || null,
+          location: location || null,
+        });
       }}
       className={`${card} mb-6 p-6`}
     >
@@ -111,8 +124,17 @@ export default function AddJobForm({ onSave, onCancel }: { onSave: (job: NewJob)
             className={input}
             value={location}
             onChange={(e) => setLocation(e.target.value)}
+            onBlur={() => {
+              const before = scopedFrom.current;
+              setScope((s) => scopeAfterLocationEdit(s, before, location));
+              scopedFrom.current = location;
+            }}
             placeholder="Remote, Berlin…"
           />
+        </div>
+        <div>
+          <label className={label} htmlFor="new-scope">Where</label>
+          <ScopePicker id="new-scope" value={scope} onChange={setScope} />
         </div>
         <div>
           <label className={label} htmlFor="new-stage">Stage</label>

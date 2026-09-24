@@ -335,7 +335,7 @@ export default function MyJobsPage() {
                     <span className="truncate text-base text-soft">{job.company}</span>
                   </span>
                   <span className="mt-1.5 flex flex-wrap items-center gap-2.5 text-sm text-faint">
-                    {job.remote_scope && <ScopeTag scope={job.remote_scope} />}
+                    {job.remote_scope && job.remote_scope !== "unknown" && <ScopeTag scope={job.remote_scope} />}
                     {money(job) && <span className="text-soft">{money(job)}</span>}
                     {job.applied_at && <span>applied {sinceLabel(job.applied_at)}</span>}
                     {job.next_action && <span className="text-brand">next: {job.next_action}</span>}

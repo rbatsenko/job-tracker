@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import { StagePicker } from "./bits";
+import { ScopePicker, StagePicker, scopeAfterLocationEdit } from "./bits";
 import SalaryFields, { fromDraft, toDraft, type SalaryDraft } from "./salary-fields";
 import { input, label, textarea, secondaryButton } from "./styles";
 import type { MyJob } from "@/lib/my-jobs";
@@ -15,15 +15,24 @@ type JobEditorProps = {
 
 type TextKey = "company" | "title" | "url" | "location" | "next_action" | "draft" | "notes";
 
+const pad = (n: number) => String(n).padStart(2, "0");
+const dayOf = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+/** A timestamp as the viewer's local calendar day, the value a date input takes. */
+const toDay = (iso: string | null) => (iso && !Number.isNaN(Date.parse(iso)) ? dayOf(new Date(iso)) : "");
+/** Local noon, so the day doesn't slip when read back in another timezone. */
+const fromDay = (day: string) => (day ? new Date(`${day}T12:00:00`).toISOString() : null);
+
 /** Edits save on blur, so typing doesn't write to storage on every keystroke. */
 export default function JobEditor({ job, onChange, onDelete, onClose }: JobEditorProps) {
   const id = useId();
   const [values, setValues] = useState(job);
   const [salary, setSalary] = useState(() => toDraft(job));
+  const [appliedDay, setAppliedDay] = useState(() => toDay(job.applied_at));
   const [confirming, setConfirming] = useState(false);
   useEffect(() => {
     setValues(job);
     setSalary(toDraft(job));
+    setAppliedDay(toDay(job.applied_at));
   }, [job]);
 
   const saveSalary = (draft: SalaryDraft) => {
@@ -35,7 +44,15 @@ export default function JobEditor({ job, onChange, onDelete, onClose }: JobEdito
     id: `${id}-${key}`,
     value: values[key] ?? "",
     onChange: (e: { target: { value: string } }) => setValues((v) => ({ ...v, [key]: e.target.value })),
-    onBlur: () => values[key] !== job[key] && onChange({ [key]: values[key] }),
+    onBlur: () =>
+      values[key] !== job[key] &&
+      onChange({
+        [key]: values[key],
+        // Where follows the location unless it was picked by hand.
+        ...(key === "location" && {
+          remote_scope: scopeAfterLocationEdit(job.remote_scope, job.location, values.location),
+        }),
+      }),
   });
 
   const field = (key: TextKey, text: string, placeholder?: string) => (
@@ -53,10 +70,30 @@ export default function JobEditor({ job, onChange, onDelete, onClose }: JobEdito
             {field("company", "Company")}
             {field("title", "Role")}
             {field("url", "Link")}
-            {field("location", "Location")}
+            {field("location", "Location", "Remote, Berlin…")}
+            <div>
+              <label className={label} htmlFor={`${id}-scope`}>Where</label>
+              <ScopePicker
+                id={`${id}-scope`}
+                value={job.remote_scope}
+                onChange={(remote_scope) => remote_scope !== job.remote_scope && onChange({ remote_scope })}
+              />
+            </div>
             <div>
               <label className={label} htmlFor={`${id}-stage`}>Stage</label>
               <StagePicker id={`${id}-stage`} value={job.status} onChange={(status) => onChange({ status })} />
+            </div>
+            <div>
+              <label className={label} htmlFor={`${id}-applied`}>Applied on</label>
+              <input
+                id={`${id}-applied`}
+                type="date"
+                className={input}
+                max={dayOf(new Date())}
+                value={appliedDay}
+                onChange={(e) => setAppliedDay(e.target.value)}
+                onBlur={() => appliedDay !== toDay(job.applied_at) && onChange({ applied_at: fromDay(appliedDay) })}
+              />
             </div>
             {field("next_action", "What's next", "Follow up on Friday")}
             <SalaryFields id={`${id}-salary`} value={salary} onChange={setSalary} onCommit={saveSalary} />
