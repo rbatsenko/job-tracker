@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { ScopePicker, StagePicker, scopeAfterLocationEdit } from "./bits";
+import DatePicker, { dayOf } from "./date-picker";
 import SalaryFields, { fromDraft, toDraft, type SalaryDraft } from "./salary-fields";
 import { input, label, textarea, secondaryButton } from "./styles";
 import type { MyJob } from "@/lib/my-jobs";
@@ -19,9 +20,7 @@ type TextKey = (typeof TEXT_KEYS)[number];
 const sameDraft = (a: SalaryDraft, b: SalaryDraft) =>
   a.min === b.min && a.max === b.max && a.currency === b.currency && a.period === b.period;
 
-const pad = (n: number) => String(n).padStart(2, "0");
-const dayOf = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-/** A timestamp as the viewer's local calendar day, the value a date input takes. */
+/** A timestamp as the viewer's local calendar day, the value the picker takes. */
 const toDay = (iso: string | null) => (iso && !Number.isNaN(Date.parse(iso)) ? dayOf(new Date(iso)) : "");
 /** Local noon, so the day doesn't slip when read back in another timezone. */
 const fromDay = (day: string) => (day ? new Date(`${day}T12:00:00`).toISOString() : null);
@@ -31,7 +30,6 @@ export default function JobEditor({ job, onChange, onDelete, onClose }: JobEdito
   const id = useId();
   const [values, setValues] = useState(job);
   const [salary, setSalary] = useState(() => toDraft(job));
-  const [appliedDay, setAppliedDay] = useState(() => toDay(job.applied_at));
   const [confirming, setConfirming] = useState(false);
 
   // A sync or a save re-reads the list, so `job` arrives as a fresh object even
@@ -49,7 +47,6 @@ export default function JobEditor({ job, onChange, onDelete, onClose }: JobEdito
       return next;
     });
     setSalary((s) => (sameDraft(s, toDraft(before)) ? toDraft(job) : s));
-    setAppliedDay((d) => (d === toDay(before.applied_at) ? toDay(job.applied_at) : d));
   }, [job]);
 
   const saveSalary = (draft: SalaryDraft) => {
@@ -102,14 +99,13 @@ export default function JobEditor({ job, onChange, onDelete, onClose }: JobEdito
             </div>
             <div>
               <label className={label} htmlFor={`${id}-applied`}>Applied on</label>
-              <input
+              <DatePicker
                 id={`${id}-applied`}
-                type="date"
-                className={input}
+                label="Applied on"
+                placeholder="Not yet"
+                value={toDay(job.applied_at)}
                 max={dayOf(new Date())}
-                value={appliedDay}
-                onChange={(e) => setAppliedDay(e.target.value)}
-                onBlur={() => appliedDay !== toDay(job.applied_at) && onChange({ applied_at: fromDay(appliedDay) })}
+                onChange={(day) => day !== toDay(job.applied_at) && onChange({ applied_at: fromDay(day) })}
               />
             </div>
             {field("next_action", "What's next", "Follow up on Friday")}
