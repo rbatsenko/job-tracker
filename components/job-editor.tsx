@@ -13,7 +13,11 @@ type JobEditorProps = {
   onClose: () => void;
 };
 
-type TextKey = "company" | "title" | "url" | "location" | "next_action" | "draft" | "notes";
+const TEXT_KEYS = ["company", "title", "url", "location", "next_action", "draft", "notes"] as const;
+type TextKey = (typeof TEXT_KEYS)[number];
+
+const sameDraft = (a: SalaryDraft, b: SalaryDraft) =>
+  a.min === b.min && a.max === b.max && a.currency === b.currency && a.period === b.period;
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const dayOf = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -29,10 +33,23 @@ export default function JobEditor({ job, onChange, onDelete, onClose }: JobEdito
   const [salary, setSalary] = useState(() => toDraft(job));
   const [appliedDay, setAppliedDay] = useState(() => toDay(job.applied_at));
   const [confirming, setConfirming] = useState(false);
+
+  // A sync or a save re-reads the list, so `job` arrives as a fresh object even
+  // when nothing changed. Fields still being edited keep what's typed; the rest
+  // take the new values. Otherwise switching tabs mid-sentence lost the sentence.
+  const shown = useRef(job);
   useEffect(() => {
-    setValues(job);
-    setSalary(toDraft(job));
-    setAppliedDay(toDay(job.applied_at));
+    const before = shown.current;
+    shown.current = job;
+    setValues((v) => {
+      const next = { ...job };
+      for (const key of TEXT_KEYS) {
+        if (v[key] !== before[key]) (next as Record<TextKey, string | null>)[key] = v[key];
+      }
+      return next;
+    });
+    setSalary((s) => (sameDraft(s, toDraft(before)) ? toDraft(job) : s));
+    setAppliedDay((d) => (d === toDay(before.applied_at) ? toDay(job.applied_at) : d));
   }, [job]);
 
   const saveSalary = (draft: SalaryDraft) => {
