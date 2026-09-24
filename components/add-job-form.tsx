@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { StagePicker } from "./bits";
+import SalaryFields, { fromDraft, toDraft } from "./salary-fields";
 import { input, label, card, primaryButton, secondaryButton } from "./styles";
 import type { MyJob } from "@/lib/my-jobs";
 import type { Status } from "@/lib/types";
@@ -15,6 +16,7 @@ export default function AddJobForm({ onSave, onCancel }: { onSave: (job: NewJob)
   const [location, setLocation] = useState("");
   const [status, setStatus] = useState<Status>("shortlist");
   const [details, setDetails] = useState<Partial<MyJob>>({});
+  const [salary, setSalary] = useState(() => toDraft({}));
   const [reading, setReading] = useState(false);
   const [note, setNote] = useState<string | null>(null);
 
@@ -40,11 +42,9 @@ export default function AddJobForm({ onSave, onCancel }: { onSave: (job: NewJob)
       setDetails({
         remote_scope: found.remote_scope ?? null,
         description: found.description ?? null,
-        salary_min: found.salary_min ?? null,
-        salary_max: found.salary_max ?? null,
-        currency: found.currency ?? null,
-        salary_period: found.salary_period ?? null,
       });
+      // Only replace what's typed when the posting names a figure.
+      if (found.salary_max || found.salary_min) setSalary(toDraft(found));
       setNote(`Filled in from ${found.via}. Change anything that looks wrong.`);
     } catch {
       setNote("Couldn't reach that page. Fill it in by hand.");
@@ -58,7 +58,7 @@ export default function AddJobForm({ onSave, onCancel }: { onSave: (job: NewJob)
       onSubmit={(e) => {
         e.preventDefault();
         if (!company.trim() || !title.trim()) return;
-        onSave({ ...details, company, title, status, url: url || null, location: location || null });
+        onSave({ ...details, ...fromDraft(salary), company, title, status, url: url || null, location: location || null });
       }}
       className={`${card} mb-6 p-6`}
     >
@@ -118,6 +118,7 @@ export default function AddJobForm({ onSave, onCancel }: { onSave: (job: NewJob)
           <label className={label} htmlFor="new-stage">Stage</label>
           <StagePicker id="new-stage" value={status} onChange={setStatus} />
         </div>
+        <SalaryFields id="new-salary" value={salary} onChange={setSalary} />
       </div>
 
       <div className="mt-6 flex gap-3">

@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { StagePicker } from "./bits";
+import SalaryFields, { fromDraft, toDraft, type SalaryDraft } from "./salary-fields";
 import { input, label, textarea, secondaryButton } from "./styles";
 import type { MyJob } from "@/lib/my-jobs";
 
@@ -18,8 +19,17 @@ type TextKey = "company" | "title" | "url" | "location" | "next_action" | "draft
 export default function JobEditor({ job, onChange, onDelete, onClose }: JobEditorProps) {
   const id = useId();
   const [values, setValues] = useState(job);
+  const [salary, setSalary] = useState(() => toDraft(job));
   const [confirming, setConfirming] = useState(false);
-  useEffect(() => setValues(job), [job]);
+  useEffect(() => {
+    setValues(job);
+    setSalary(toDraft(job));
+  }, [job]);
+
+  const saveSalary = (draft: SalaryDraft) => {
+    const next = fromDraft(draft);
+    if ((Object.keys(next) as (keyof typeof next)[]).some((k) => next[k] !== job[k])) onChange(next);
+  };
 
   const bind = (key: TextKey) => ({
     id: `${id}-${key}`,
@@ -49,6 +59,7 @@ export default function JobEditor({ job, onChange, onDelete, onClose }: JobEdito
               <StagePicker id={`${id}-stage`} value={job.status} onChange={(status) => onChange({ status })} />
             </div>
             {field("next_action", "What's next", "Follow up on Friday")}
+            <SalaryFields id={`${id}-salary`} value={salary} onChange={setSalary} onCommit={saveSalary} />
           </div>
 
           <div>

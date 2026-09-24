@@ -123,7 +123,10 @@ const STAGE_RANK: Record<Status, number> = {
 const WAITING: Status[] = ["applied", "replied", "interviewing"];
 
 const daysSince = (iso: string | null) => (iso ? (Date.now() - Date.parse(iso)) / 86_400_000 : -1);
-const salary = (j: MyJob) => (j.salary_max ? yearlyEur(j.salary_max, j.salary_period, j.currency ?? "EUR") : -1);
+const salary = (j: MyJob) => {
+  const top = j.salary_max ?? j.salary_min;
+  return top ? yearlyEur(top, j.salary_period, j.currency ?? "EUR") : -1;
+};
 
 export function sortMyJobs(jobs: MyJob[], key: SortKey = "progress"): MyJob[] {
   const list = [...jobs];

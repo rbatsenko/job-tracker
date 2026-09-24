@@ -75,10 +75,14 @@ export function money(j: {
   currency?: string | null;
   salary_period?: string | null;
 }) {
-  if (!j.salary_max) return null;
+  if (!j.salary_max && !j.salary_min) return null;
   const monthly = j.salary_period === "month";
   const short = (n: number) => (n >= 10_000 && !monthly ? `${Math.round(n / 1000)}K` : n.toLocaleString());
-  const range = j.salary_min && j.salary_min !== j.salary_max ? `${short(j.salary_min)}-${short(j.salary_max)}` : short(j.salary_max);
+  const range = !j.salary_max
+    ? `${short(j.salary_min!)}+`
+    : j.salary_min && j.salary_min !== j.salary_max
+      ? `${short(j.salary_min)}-${short(j.salary_max)}`
+      : short(j.salary_max);
   const per = monthly ? "/mo" : j.salary_period === "hour" ? "/h" : "";
   const symbol = SYMBOL[j.currency ?? "USD"];
   return symbol ? `${symbol}${range}${per}` : `${range} ${j.currency}${per}`;
