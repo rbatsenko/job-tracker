@@ -141,29 +141,55 @@ function CopyButton({ text, fieldId }: CopyButtonProps) {
     }
   }
 
+  // A width can only transition between two numbers, so the button takes its
+  // label's measured width; the observer also catches the web font swapping in.
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const labelRef = useRef<HTMLSpanElement>(null);
+  const [width, setWidth] = useState<number>();
+  useEffect(() => {
+    const button = buttonRef.current;
+    const label = labelRef.current;
+    if (!button || !label) return;
+    const observer = new ResizeObserver(() =>
+      setWidth(label.offsetWidth + button.offsetWidth - button.clientWidth),
+    );
+    observer.observe(label);
+    return () => observer.disconnect();
+  }, []);
+
   const copied = state === "copied";
   return (
     <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
       <button
+        ref={buttonRef}
         type="button"
         onClick={copy}
-        className={`inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-sm font-medium transition active:scale-95 ${
+        style={{
+          width,
+          transition:
+            "width 350ms cubic-bezier(0.2, 0.8, 0.2, 1), color 300ms, background-color 300ms, border-color 300ms, scale 150ms",
+        }}
+        className={`inline-flex h-9 items-center justify-center overflow-hidden rounded-md border text-sm font-medium active:scale-95 ${
           copied
             ? "border-brand bg-brand-soft text-brand"
             : "border-line text-soft hover:border-line-strong hover:bg-raised hover:text-text"
         }`}
       >
-        <svg aria-hidden viewBox="0 0 16 16" className="h-4 w-4 shrink-0">
-          {copied ? (
-            <path d="M3.5 8.5 6.5 11.5 12.5 4.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-          ) : (
-            <g fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round">
-              <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />
-              <path d="M10.5 3.5v-.5a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 3v5A1.5 1.5 0 0 0 4 9.5h.5" />
-            </g>
-          )}
-        </svg>
-        {copied ? "Copied" : "Copy message"}
+        <span ref={labelRef} className="shrink-0 whitespace-nowrap px-3">
+          <span key={String(copied)} className="inline-flex animate-[tip-in_250ms_ease-out] items-center gap-1.5">
+            <svg aria-hidden viewBox="0 0 16 16" className="h-4 w-4 shrink-0">
+              {copied ? (
+                <path d="M3.5 8.5 6.5 11.5 12.5 4.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              ) : (
+                <g fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round">
+                  <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />
+                  <path d="M10.5 3.5v-.5a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 3v5A1.5 1.5 0 0 0 4 9.5h.5" />
+                </g>
+              )}
+            </svg>
+            {copied ? "Copied" : "Copy message"}
+          </span>
+        </span>
       </button>
       <span role="status" className={`text-sm ${state === "failed" ? "text-closed" : "sr-only"}`}>
         {state === "failed" ? "The browser blocked the clipboard. The message is selected, so copy it by hand." : copied ? "Message copied." : ""}
