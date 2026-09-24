@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { StagePicker } from "./bits";
 import { input, label, textarea, secondaryButton } from "./styles";
 import type { MyJob } from "@/lib/my-jobs";
@@ -54,14 +54,7 @@ export default function JobEditor({ job, onChange, onDelete, onClose }: JobEdito
           <div>
             <label className={label} htmlFor={`${id}-draft`}>Your message to them</label>
             <textarea rows={9} className={textarea} placeholder="Write what you'll send." {...bind("draft")} />
-            {values.draft && (
-              <button
-                onClick={() => navigator.clipboard.writeText(values.draft ?? "").catch(() => {})}
-                className="mt-2 h-9 rounded-md border border-line px-3 text-sm text-soft hover:bg-raised"
-              >
-                Copy message
-              </button>
-            )}
+            {values.draft && <CopyButton text={values.draft} fieldId={`${id}-draft`} />}
           </div>
         </div>
 
@@ -119,6 +112,62 @@ export default function JobEditor({ job, onChange, onDelete, onClose }: JobEdito
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+type CopyButtonProps = {
+  text: string;
+  /** The field holding the text, selected when the clipboard is blocked so it can be copied by hand. */
+  fieldId: string;
+};
+
+/** Flips to "Copied" for a moment, so a click never goes unanswered. */
+function CopyButton({ text, fieldId }: CopyButtonProps) {
+  const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(timer.current), []);
+
+  async function copy() {
+    clearTimeout(timer.current);
+    try {
+      await navigator.clipboard.writeText(text);
+      setState("copied");
+      timer.current = setTimeout(() => setState("idle"), 2000);
+    } catch {
+      setState("failed");
+      const field = document.getElementById(fieldId);
+      if (field instanceof HTMLTextAreaElement) field.select();
+    }
+  }
+
+  const copied = state === "copied";
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+      <button
+        type="button"
+        onClick={copy}
+        className={`inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-sm font-medium transition active:scale-95 ${
+          copied
+            ? "border-brand bg-brand-soft text-brand"
+            : "border-line text-soft hover:border-line-strong hover:bg-raised hover:text-text"
+        }`}
+      >
+        <svg aria-hidden viewBox="0 0 16 16" className="h-4 w-4 shrink-0">
+          {copied ? (
+            <path d="M3.5 8.5 6.5 11.5 12.5 4.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          ) : (
+            <g fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round">
+              <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />
+              <path d="M10.5 3.5v-.5a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 3v5A1.5 1.5 0 0 0 4 9.5h.5" />
+            </g>
+          )}
+        </svg>
+        {copied ? "Copied" : "Copy message"}
+      </button>
+      <span role="status" className={`text-sm ${state === "failed" ? "text-closed" : "sr-only"}`}>
+        {state === "failed" ? "The browser blocked the clipboard. The message is selected, so copy it by hand." : copied ? "Message copied." : ""}
+      </span>
     </div>
   );
 }
