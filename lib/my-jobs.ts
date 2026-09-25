@@ -222,7 +222,12 @@ Statuses: new, shortlist, drafted, applied, replied, interviewing, offer, reject
 ${exportMyJobs()}`;
 }
 
-export type MergeResult = { added: number; updated: number; removed: number };
+/**
+ * `added`, `updated` and `removed` are changes the copy brought here. `ahead` counts
+ * jobs where this browser has something the copy lacks: a newer edit, a job it
+ * doesn't have, or a deletion. For sync, that's drift the upload still has to fix.
+ */
+export type MergeResult = { added: number; updated: number; removed: number; ahead: number };
 
 /**
  * Merges another copy of the list into this one. Jobs match on origin, then id.
@@ -238,19 +243,31 @@ export function mergeDoc(doc: Partial<MyJobsFile> | MyJob[]): MergeResult {
   const { jobs, removed } = readDoc();
   const byOrigin = new Map(jobs.flatMap((j) => (j.origin ? [[originKey(j.origin), j] as const] : [])));
   const byId = new Map(jobs.map((j) => [j.id, j]));
-  const result: MergeResult = { added: 0, updated: 0, removed: 0 };
+  const unmatched = new Set(jobs);
+  const result: MergeResult = { added: 0, updated: 0, removed: 0, ahead: 0 };
 
   for (const raw of incoming) {
     if (!raw?.company || !raw?.title) continue;
     const given = Object.fromEntries(Object.entries(raw).filter(([, v]) => v !== undefined)) as Partial<MyJob>;
     const match = (raw.origin && byOrigin.get(originKey(raw.origin))) ?? (raw.id ? byId.get(raw.id) : undefined);
     if (match) {
-      if (raw.updated_at && raw.updated_at < match.updated_at) continue;
-      Object.assign(match, given, { id: match.id, created_at: match.created_at, updated_at: raw.updated_at ?? now() });
-      result.updated++;
+      unmatched.delete(match);
+      if (raw.updated_at && raw.updated_at < match.updated_at) {
+        result.ahead++;
+        continue;
+      }
+      const next = { ...match, ...given, id: match.id, created_at: match.created_at, updated_at: raw.updated_at ?? now() };
+      // Two copies that already agree aren't an update; only count jobs that actually change.
+      if (Object.keys(next).some((k) => JSON.stringify(next[k as keyof MyJob]) !== JSON.stringify(match[k as keyof MyJob]))) {
+        result.updated++;
+      }
+      Object.assign(match, next);
     } else {
       const deletedHere = raw.id && removed[raw.id];
-      if (deletedHere && (!raw.updated_at || raw.updated_at < deletedHere)) continue;
+      if (deletedHere && (!raw.updated_at || raw.updated_at < deletedHere)) {
+        result.ahead++;
+        continue;
+      }
       jobs.push({ ...BLANK, ...given, id: raw.id ?? newId(), created_at: raw.created_at ?? now(), updated_at: raw.updated_at ?? now() } as MyJob);
       result.added++;
     }
@@ -263,6 +280,7 @@ export function mergeDoc(doc: Partial<MyJobsFile> | MyJob[]): MergeResult {
       result.removed++;
       return false;
     }
+    if (unmatched.has(j)) result.ahead++;
     return true;
   });
   for (const [id, at] of Object.entries(theirRemoved)) merged[id] = merged[id] && merged[id] > at ? merged[id] : at;

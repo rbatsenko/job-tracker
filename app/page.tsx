@@ -22,6 +22,7 @@ import {
   removeMyJob,
   sortMyJobs,
   updateMyJob,
+  type MergeResult,
   type MyJob,
   type SortKey,
 } from "@/lib/my-jobs";
@@ -36,6 +37,18 @@ const toolbarButton =
   "h-11 flex-1 whitespace-nowrap rounded-field border border-line px-3 text-[0.9375rem] font-medium text-soft transition hover:bg-sunken hover:text-text sm:flex-none sm:px-4 sm:text-base";
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+const SYNC_FAILED = "Couldn't reach sync. Your changes are safe here and go up next time it connects.";
+
+/** What a sync changed, or null when both copies already matched. */
+function describeDrift({ added, updated, removed, ahead }: MergeResult) {
+  const came = [added && plural(added, "new job"), updated && `${updated} updated`, removed && `${removed} removed`].filter(Boolean);
+  const parts = [
+    came.length && `brought in ${came.join(", ")} from another device`,
+    ahead && `sent ${plural(ahead, "change")} it hadn't seen yet`,
+  ].filter(Boolean) as string[];
+  return parts.length ? `Synced: ${parts.join(" and ")}.` : null;
+}
 
 function download(name: string, contents: string) {
   const a = document.createElement("a");
@@ -68,17 +81,20 @@ export default function MyJobsPage() {
     syncAvailable().then(setCanSync);
   }, []);
 
-  // A synced browser pulls when the page opens and whenever the tab comes back.
+  // A synced browser pulls when the page opens and whenever the tab comes back, and
+  // says so when the two copies had drifted apart. In step, it stays quiet.
   useEffect(() => {
     if (!syncState) return;
     const run = () => {
       if (document.visibilityState !== "visible") return;
       syncNow(syncState.code)
-        .then(() => {
+        .then((merged) => {
           setJobs(listMyJobs());
           setSyncState(readSync());
+          const drift = merged && describeDrift(merged);
+          setMessage((m) => (drift ? { tone: "ok", text: drift } : m?.text === SYNC_FAILED ? null : m));
         })
-        .catch(() => {});
+        .catch(() => setMessage({ tone: "error", text: SYNC_FAILED }));
     };
     run();
     document.addEventListener("visibilitychange", run);
@@ -98,8 +114,7 @@ export default function MyJobsPage() {
     setJobs(listMyJobs());
     setSyncState(readSync());
     if (!merged) return "Synced. Nothing was stored under this code before, so it starts from this list.";
-    const parts = [merged.added && `${plural(merged.added, "new job")}`, merged.updated && `${merged.updated} updated`, merged.removed && `${merged.removed} removed`].filter(Boolean);
-    return parts.length ? `Synced: ${parts.join(", ")}.` : "Synced. Both sides already matched.";
+    return describeDrift(merged) ?? "Synced. Both sides already matched.";
   }
 
   /** Applies a change, re-reads the list, and mirrors it to SQLite when running locally. */
